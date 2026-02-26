@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"orstax/store/sqlstore"
@@ -13,7 +12,7 @@ import (
 	"time"
 
 	"go.mau.fi/whatsmeow"
-	waProto "go.mau.fi/whatsmeow/binary/proto"
+	waProto "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
@@ -77,10 +76,6 @@ func chatMetaAi(v *events.Message) {
 func eventHandler(evt any) {
 	switch v := evt.(type) {
 	case *events.Message:
-		data, err := json.MarshalIndent(v.Message, "", "  ")
-		if err == nil {
-			fmt.Printf("Received a message:\n%s\n", string(data))
-		}
 
 		text := v.Message.GetConversation()
 		if text == "" {
