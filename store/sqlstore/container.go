@@ -238,6 +238,12 @@ func (c *Container) Close() error {
 	return nil
 }
 
+// DB returns the underlying *sql.DB so callers can run their own queries
+// against the same connection (e.g. for the bot_settings table).
+func (c *Container) DB() *sql.DB {
+	return c.db.RawDB
+}
+
 // PutDevice stores the given device in this database. This should be called through Device.Save()
 // (which usually doesn't need to be called manually, as the library does that automatically when relevant).
 func (c *Container) PutDevice(ctx context.Context, device *store.Device) error {

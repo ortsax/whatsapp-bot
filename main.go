@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"orstax/plugins"
+	"orstax/store"
 	"orstax/store/sqlstore"
 	"os"
 	"os/signal"
@@ -12,96 +14,39 @@ import (
 	"time"
 
 	"go.mau.fi/whatsmeow"
-	waProto "go.mau.fi/whatsmeow/proto/waE2E"
-	"go.mau.fi/whatsmeow/types"
-	"go.mau.fi/whatsmeow/types/events"
 	waLog "go.mau.fi/whatsmeow/util/log"
-	"google.golang.org/protobuf/proto"
 
 	_ "modernc.org/sqlite"
 )
 
-var client *whatsmeow.Client
-var metaJID = types.NewMetaAIJID
-var pendingReplies = make(map[string]types.JID)
-
-var lastProcessedResponse = make(map[string]string)
-var sentMessageIDs = make(map[string]types.MessageID)
-
-func chatMetaAi(v *events.Message) {
-	var responseText string
-	resID := v.Message.GetMessageContextInfo().GetBotMetadata().GetBotResponseID()
-
-	if v.Message.Conversation != nil {
-		responseText = v.Message.GetConversation()
-	} else if v.Message.ExtendedTextMessage != nil {
-		responseText = v.Message.GetExtendedTextMessage().GetText()
-	} else if v.Message.ProtocolMessage != nil && v.Message.ProtocolMessage.GetType() == waProto.ProtocolMessage_MESSAGE_EDIT {
-		edit := v.Message.ProtocolMessage.EditedMessage
-		if edit != nil {
-			if edit.Conversation != nil {
-				responseText = edit.GetConversation()
-			} else if edit.ExtendedTextMessage != nil {
-				responseText = edit.ExtendedTextMessage.GetText()
-			}
-		}
+// getDevice returns the device for the given phone number.
+// If phone is empty it falls back to the first stored device (or a new one).
+// If phone is provided and no matching device exists, a new (unpaired) device is returned.
+func getDevice(ctx context.Context, container *sqlstore.Container, phone string) (*store.Device, error) {
+	if phone == "" {
+		return container.GetFirstDevice(ctx)
 	}
 
-	if responseText != "" && resID != "" {
-		lastText, seen := lastProcessedResponse[resID]
-		if !seen || len(responseText) > len(lastText) {
-			if targetJID, ok := pendingReplies[v.Info.Sender.String()]; ok {
-				if msgID, exists := sentMessageIDs[resID]; exists {
-					editMsg := client.BuildEdit(targetJID, msgID, &waProto.Message{
-						Conversation: proto.String(responseText),
-					})
-					_, err := client.SendMessage(context.Background(), targetJID, editMsg)
-					if err == nil {
-						lastProcessedResponse[resID] = responseText
-					}
-				} else {
-					resp, err := client.SendMessage(context.Background(), targetJID, &waProto.Message{
-						Conversation: proto.String(responseText),
-					})
-					if err == nil {
-						sentMessageIDs[resID] = resp.ID
-						lastProcessedResponse[resID] = responseText
-					}
-				}
-			}
+	devices, err := container.GetAllDevices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, dev := range devices {
+		if dev.ID == nil {
+			continue
+		}
+		// Device JID User field may be "phone.deviceIndex" – compare only the phone part.
+		userPhone := strings.SplitN(dev.ID.User, ".", 2)[0]
+		if userPhone == phone {
+			return dev, nil
 		}
 	}
-}
-
-func eventHandler(evt any) {
-	switch v := evt.(type) {
-	case *events.Message:
-
-		text := v.Message.GetConversation()
-		if text == "" {
-			text = v.Message.GetExtendedTextMessage().GetText()
-		}
-
-		if strings.HasPrefix(strings.ToLower(text), "meta ") {
-			query := strings.TrimPrefix(text, "meta ")
-			_, err := client.SendMessage(context.Background(), metaJID, &waProto.Message{
-				Conversation: proto.String(query),
-			})
-			if err != nil {
-				return
-			}
-			pendingReplies[metaJID.String()] = v.Info.Chat
-			return
-		}
-
-		if v.Info.Sender.User == metaJID.User {
-			chatMetaAi(v)
-		}
-	}
+	// No existing session for this number – return a fresh device for pairing.
+	return container.NewDevice(), nil
 }
 
 func main() {
-	phoneArg := flag.String("phone-number", "", "The phone number to pair with (international format)")
+	phoneArg := flag.String("phone-number", "", "Phone number (international format) used to identify or pair a device")
 	flag.Parse()
 
 	dbLog := waLog.Stdout("Database", "ERROR", true)
@@ -121,14 +66,22 @@ func main() {
 		panic(err)
 	}
 
-	deviceStore, err := container.GetFirstDevice(ctx)
+	// Create the bot_settings table (no user needed yet).
+	if err := plugins.InitDB(container.DB()); err != nil {
+		panic(fmt.Errorf("settings db init: %w", err))
+	}
+
+	// Wire LID resolver (owner phone resolved after Connect).
+	plugins.InitLIDStore(container.LIDMap, "")
+
+	deviceStore, err := getDevice(ctx, container, *phoneArg)
 	if err != nil {
 		panic(err)
 	}
 
 	clientLog := waLog.Stdout("Client", "ERROR", true)
-	client = whatsmeow.NewClient(deviceStore, clientLog)
-	client.AddEventHandler(eventHandler)
+	client := whatsmeow.NewClient(deviceStore, clientLog)
+	client.AddEventHandler(plugins.NewHandler(client))
 
 	err = client.Connect()
 	if err != nil {
@@ -150,6 +103,12 @@ func main() {
 		}
 		fmt.Printf("Your pairing code is: %s\n", code)
 	} else {
+		ownerPhone := strings.SplitN(client.Store.ID.User, ".", 2)[0]
+		plugins.InitLIDStore(container.LIDMap, ownerPhone)
+		if err := plugins.InitSettings(ownerPhone); err != nil {
+			panic(fmt.Errorf("settings load: %w", err))
+		}
+		plugins.BootstrapOwnerSudoers()
 		fmt.Println("Already logged in.")
 	}
 
