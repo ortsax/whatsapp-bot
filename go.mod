@@ -5,7 +5,6 @@ go 1.25.0
 require (
 	github.com/google/uuid v1.6.0
 	github.com/rs/zerolog v1.34.0
-	go.mau.fi/libsignal v0.2.1
 	go.mau.fi/util v0.9.6
 	go.mau.fi/whatsmeow v0.0.0-20260219150138-7ae702b1eed4
 	google.golang.org/protobuf v1.36.11
@@ -24,6 +23,7 @@ require (
 	github.com/petermattis/goid v0.0.0-20260113132338-7c7de50cc741 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vektah/gqlparser/v2 v2.5.27 // indirect
+	go.mau.fi/libsignal v0.2.1 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20260212183809-81e46e3db34a // indirect
 	golang.org/x/net v0.50.0 // indirect
