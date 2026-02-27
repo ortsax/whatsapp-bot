@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"context"
+	"sync"
 
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
@@ -12,6 +13,8 @@ import (
 
 // MetaJID is the WhatsApp JID for the Meta AI assistant.
 var MetaJID = types.NewMetaAIJID
+
+var metaMu sync.Mutex
 
 // pendingReplies maps the Meta AI JID string to the chat JID that issued the query.
 var pendingReplies = make(map[string]types.JID)
@@ -51,8 +54,10 @@ func HandleMetaAIResponse(client *whatsmeow.Client, v *events.Message) {
 		return
 	}
 
-	lastText, seen := lastProcessedResponse[resID]
-	if seen && len(responseText) <= len(lastText) {
+	metaMu.Lock()
+	defer metaMu.Unlock()
+
+	if lastText, seen := lastProcessedResponse[resID]; seen && len(responseText) <= len(lastText) {
 		return
 	}
 
@@ -105,7 +110,7 @@ func init() {
 				outMsg = &waProto.Message{VideoMessage: vid}
 			} else {
 				if query == "" {
-					ctx.Reply("Please provide a query. Usage: .meta <question>")
+					ctx.Reply(T().MetaUsage)
 					return nil
 				}
 				outMsg = &waProto.Message{Conversation: proto.String(query)}
@@ -116,7 +121,9 @@ func init() {
 				return err
 			}
 			// Store which chat to relay the response back to.
+			metaMu.Lock()
 			pendingReplies[MetaJID.String()] = ctx.Event.Info.Chat
+			metaMu.Unlock()
 			return nil
 		},
 	})

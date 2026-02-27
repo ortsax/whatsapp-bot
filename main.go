@@ -13,11 +13,47 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
 	"go.mau.fi/whatsmeow"
 	waLog "go.mau.fi/whatsmeow/util/log"
 
+	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
 )
+
+// loadEnv loads .env if present, otherwise falls back to .env.example.
+func loadEnv() {
+	if err := godotenv.Load(".env"); err != nil {
+		_ = godotenv.Load(".env.example")
+	}
+}
+
+// dbConfig returns the sql dialect and connection address derived from DATABASE_URL.
+// A bare filename (no scheme) or a path ending in .db is treated as SQLite;
+// anything starting with postgres:// or postgresql:// is treated as PostgreSQL.
+func dbConfig() (dialect, addr string) {
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		url = "database.db"
+	}
+
+	if strings.HasPrefix(url, "postgres://") || strings.HasPrefix(url, "postgresql://") {
+		return "postgres", url
+	}
+
+	// SQLite – build the connection string with recommended pragmas.
+	// Strip a leading "file:" if present so we can normalise the path.
+	path := strings.TrimPrefix(url, "file:")
+	addr = "file:" + path +
+		"?_pragma=foreign_keys(1)" +
+		"&_pragma=journal_mode(WAL)" +
+		"&_pragma=synchronous(NORMAL)" +
+		"&_pragma=busy_timeout(10000)" +
+		"&_pragma=cache_size(-64000)" +
+		"&_pragma=mmap_size(2147483648)" +
+		"&_pragma=temp_store(MEMORY)"
+	return "sqlite", addr
+}
 
 // getDevice returns the device for the given phone number.
 // If phone is empty it falls back to the first stored device (or a new one).
@@ -46,22 +82,17 @@ func getDevice(ctx context.Context, container *sqlstore.Container, phone string)
 }
 
 func main() {
+	loadEnv()
+
 	phoneArg := flag.String("phone-number", "", "Phone number (international format) used to identify or pair a device")
 	flag.Parse()
 
 	dbLog := waLog.Stdout("Database", "ERROR", true)
 	ctx := context.Background()
 
-	dbAddr := "file:database.db?" +
-		"_pragma=foreign_keys(1)&" +
-		"_pragma=journal_mode(WAL)&" +
-		"_pragma=synchronous(NORMAL)&" +
-		"_pragma=busy_timeout(10000)&" +
-		"_pragma=cache_size(-64000)&" +
-		"_pragma=mmap_size(2147483648)&" +
-		"_pragma=temp_store(MEMORY)"
+	dialect, dbAddr := dbConfig()
 
-	container, err := sqlstore.New(ctx, "sqlite", dbAddr, dbLog)
+	container, err := sqlstore.New(ctx, dialect, dbAddr, dbLog)
 	if err != nil {
 		panic(err)
 	}

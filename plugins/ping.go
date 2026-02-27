@@ -16,7 +16,7 @@ func init() {
 		Func: func(ctx *Context) error {
 			start := time.Now()
 
-			resp, err := ctx.Reply("Pong 🏓")
+			resp, err := ctx.Reply(T().Pong)
 			if err != nil {
 				return err
 			}
@@ -24,7 +24,7 @@ func init() {
 			elapsed := time.Since(start)
 
 			edit := ctx.Client.BuildEdit(ctx.Event.Info.Chat, resp.ID, &waProto.Message{
-				Conversation: proto.String(fmt.Sprintf("Pong 🏓 (%dms)", elapsed.Milliseconds())),
+				Conversation: proto.String(fmt.Sprintf(T().PongLatency, elapsed.Milliseconds())),
 			})
 			_, err = ctx.Client.SendMessage(context.Background(), ctx.Event.Info.Chat, edit)
 			return err

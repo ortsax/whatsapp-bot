@@ -21,6 +21,7 @@ type Settings struct {
 	Prefixes []string
 	Sudoers  []string
 	Mode     Mode
+	Language string
 }
 
 // BotSettings is the global settings instance, seeded with defaults.
@@ -28,6 +29,7 @@ var BotSettings = &Settings{
 	Prefixes: []string{"."},
 	Sudoers:  []string{},
 	Mode:     ModePublic,
+	Language: "en",
 }
 
 var settingsDB   *sql.DB
@@ -92,6 +94,8 @@ func LoadSettings() error {
 			}
 		case "mode":
 			BotSettings.Mode = Mode(value)
+		case "language":
+			BotSettings.Language = value
 		}
 	}
 	return rows.Err()
@@ -107,6 +111,7 @@ func SaveSettings() error {
 	prefixes := BotSettings.Prefixes
 	sudoers := BotSettings.Sudoers
 	mode := BotSettings.Mode
+	language := BotSettings.Language
 	BotSettings.mu.RUnlock()
 
 	pData, _ := json.Marshal(prefixes)
@@ -123,6 +128,7 @@ func SaveSettings() error {
 		{"prefixes", string(pData)},
 		{"sudoers", string(sData)},
 		{"mode", string(mode)},
+		{"language", language},
 	} {
 		if _, err = tx.Exec(upsert, settingsUser, row[0], row[1]); err != nil {
 			tx.Rollback()
@@ -199,4 +205,19 @@ func (s *Settings) SetMode(m Mode) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.Mode = m
+}
+
+func (s *Settings) GetLanguage() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.Language == "" {
+		return "en"
+	}
+	return s.Language
+}
+
+func (s *Settings) SetLanguage(lang string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Language = lang
 }

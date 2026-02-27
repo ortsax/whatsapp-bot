@@ -40,9 +40,26 @@ func (c *Context) Reply(text string) (whatsmeow.SendResponse, error) {
 
 var registry []*Command
 
-// Register adds a command to the global registry.
+// registryMap provides O(1) command lookup by lowercased pattern or alias.
+// Built incrementally during init() – read-only after startup.
+var registryMap = make(map[string]*Command)
+
+// categoryMap groups commands by their lowercased category name.
+// Built incrementally during init() – read-only after startup.
+var categoryMap = make(map[string][]*Command)
+
+// Register adds a command to the global registry and updates the lookup maps.
 func Register(cmd *Command) {
 	registry = append(registry, cmd)
+	registryMap[strings.ToLower(cmd.Pattern)] = cmd
+	for _, alias := range cmd.Aliases {
+		registryMap[strings.ToLower(alias)] = cmd
+	}
+	cat := strings.ToLower(cmd.Category)
+	if cat == "" {
+		cat = "general"
+	}
+	categoryMap[cat] = append(categoryMap[cat], cmd)
 }
 
 // parseCommand tries to extract (prefix, commandName, rest) from text using the
@@ -53,7 +70,6 @@ func parseCommand(text string, prefixes []string) (prefix, name, rest string, ok
 	for _, p := range prefixes {
 		var after string
 		if p == "" {
-			// No prefix – command is the first word.
 			after = lower
 		} else {
 			lp := strings.ToLower(p)
@@ -66,29 +82,22 @@ func parseCommand(text string, prefixes []string) (prefix, name, rest string, ok
 		if after == "" {
 			continue
 		}
-		parts := strings.SplitN(after, " ", 2)
-		name = parts[0]
-		if len(parts) > 1 {
-			rest = strings.TrimSpace(parts[1])
+		// Index-based split avoids allocating a []string.
+		if i := strings.IndexByte(after, ' '); i != -1 {
+			name = after[:i]
+			rest = strings.TrimSpace(after[i+1:])
+		} else {
+			name = after
 		}
 		return p, name, rest, true
 	}
 	return "", "", "", false
 }
 
-// findCommand looks up a command by its pattern or any alias (case-insensitive).
+// findCommand looks up a command by pattern or alias in O(1).
+// name must already be lowercased (as returned by parseCommand).
 func findCommand(name string) *Command {
-	for _, cmd := range registry {
-		if strings.ToLower(cmd.Pattern) == name {
-			return cmd
-		}
-		for _, alias := range cmd.Aliases {
-			if strings.ToLower(alias) == name {
-				return cmd
-			}
-		}
-	}
-	return nil
+	return registryMap[name]
 }
 
 // extractText returns the human-readable text from a message, checking plain
@@ -127,6 +136,11 @@ func Dispatch(client *whatsmeow.Client, evt *events.Message) {
 
 	cmd := findCommand(name)
 	if cmd == nil {
+		// If the word matches a registered category, show that category's menu.
+		if menu := CategoryMenu(name); menu != "" {
+			miniCtx := &Context{Client: client, Event: evt}
+			miniCtx.Reply(menu)
+		}
 		return
 	}
 
@@ -148,12 +162,12 @@ func Dispatch(client *whatsmeow.Client, evt *events.Message) {
 	}
 
 	if cmd.IsGroup && !isGroup {
-		ctx.Reply("❌ This command can only be used in groups.")
+		ctx.Reply(T().GroupOnly)
 		return
 	}
 
 	if cmd.IsSudo && !isSudo {
-		ctx.Reply("🔒 This command is for sudo users only.")
+		ctx.Reply(T().SudoOnly)
 		return
 	}
 

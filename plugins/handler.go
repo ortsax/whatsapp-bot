@@ -1,28 +1,23 @@
 package plugins
 
 import (
-	"fmt"
-
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types/events"
 )
 
 // NewHandler returns a whatsmeow event handler that drives the plugin system.
-// Meta AI response messages are routed to HandleMetaAIResponse; everything
-// else is dispatched through the command registry.
+// Each message is handled in its own goroutine so the whatsmeow event loop is
+// never blocked by command processing or network I/O.
 func NewHandler(client *whatsmeow.Client) func(evt any) {
 	return func(evt any) {
 		switch v := evt.(type) {
 		case *events.Message:
-			fmt.Printf("[DBG] event from=%s isFromMe=%v\n", v.Info.Sender, v.Info.IsFromMe)
-			go SaveUser(v) // run off the event goroutine to avoid lock contention
-			fmt.Printf("[DBG] after SaveUser dispatch\n")
+			go SaveUser(v)
 			if v.Info.Sender.User == MetaJID.User {
-				HandleMetaAIResponse(client, v)
+				go HandleMetaAIResponse(client, v)
 				return
 			}
-			Dispatch(client, v)
-			fmt.Printf("[DBG] after Dispatch\n")
+			go Dispatch(client, v)
 		}
 	}
 }

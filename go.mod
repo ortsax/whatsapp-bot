@@ -4,6 +4,8 @@ go 1.25.0
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.11.2
 	github.com/rs/zerolog v1.34.0
 	go.mau.fi/util v0.9.6
 	go.mau.fi/whatsmeow v0.0.0-20260219150138-7ae702b1eed4

@@ -12,19 +12,19 @@ func init() {
 		Category: "settings",
 		Func: func(ctx *Context) error {
 			if ctx.Text == "" {
-				ctx.Reply("Usage: .setprefix <p1> <p2> ...\nUse the token *empty* for a no-prefix entry.\nExample: .setprefix . / #")
+				ctx.Reply(T().SetPrefixUsage)
 				return nil
 			}
 			BotSettings.SetPrefixes(ctx.Text)
 			if err := SaveSettings(); err != nil {
-				ctx.Reply("❌ Failed to save settings: " + err.Error())
+				ctx.Reply(fmt.Sprintf(T().SaveFailed, err.Error()))
 				return err
 			}
 			display := strings.Join(BotSettings.GetPrefixes(), "  ")
 			if display == "" {
 				display = "(empty)"
 			}
-			ctx.Reply(fmt.Sprintf("✅ Prefix updated: %s", display))
+			ctx.Reply(fmt.Sprintf(T().SetPrefixUpdated, display))
 			return nil
 		},
 	})
@@ -35,7 +35,7 @@ func init() {
 		Category: "settings",
 		Func: func(ctx *Context) error {
 			if len(ctx.Args) < 2 {
-				ctx.Reply("Usage: .setsudo add|remove <phone>\nExample: .setsudo add 1234567890")
+				ctx.Reply(T().SetSudoUsage)
 				return nil
 			}
 			action := strings.ToLower(ctx.Args[0])
@@ -44,19 +44,19 @@ func init() {
 			case "add":
 				BotSettings.AddSudo(phone)
 				if err := SaveSettings(); err != nil {
-					ctx.Reply("❌ Failed to save settings: " + err.Error())
+					ctx.Reply(fmt.Sprintf(T().SaveFailed, err.Error()))
 					return err
 				}
-				ctx.Reply(fmt.Sprintf("✅ %s added as sudo user.", phone))
+				ctx.Reply(fmt.Sprintf(T().SudoAdded, phone))
 			case "remove":
 				if BotSettings.RemoveSudo(phone) {
 					_ = SaveSettings()
-					ctx.Reply(fmt.Sprintf("✅ %s removed from sudo users.", phone))
+					ctx.Reply(fmt.Sprintf(T().SudoRemoved, phone))
 				} else {
-					ctx.Reply(fmt.Sprintf("❌ %s is not a sudo user.", phone))
+					ctx.Reply(fmt.Sprintf(T().SudoNotFound, phone))
 				}
 			default:
-				ctx.Reply("❌ Unknown action. Use: add or remove")
+				ctx.Reply(T().UnknownAction)
 			}
 			return nil
 		},
@@ -71,13 +71,13 @@ func init() {
 			case "public":
 				BotSettings.SetMode(ModePublic)
 				_ = SaveSettings()
-				ctx.Reply("✅ Mode set to: *public* – anyone can use commands.")
+				ctx.Reply(T().ModePublicSet)
 			case "private":
 				BotSettings.SetMode(ModePrivate)
 				_ = SaveSettings()
-				ctx.Reply("✅ Mode set to: *private* – sudo users only.")
+				ctx.Reply(T().ModePrivateSet)
 			default:
-				ctx.Reply("Usage: .setmode public|private")
+				ctx.Reply(T().SetModeUsage)
 			}
 			return nil
 		},
