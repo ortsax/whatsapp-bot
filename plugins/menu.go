@@ -86,7 +86,7 @@ func init() {
 			}
 
 			var sb strings.Builder
-			sb.WriteString(fmt.Sprintf(T().MenuGreeting+"\n", pushName))
+			fmt.Fprintf(&sb, T().MenuGreeting+"\n", pushName)
 
 			for _, cat := range catOrder {
 				sb.WriteString("\n▸ *" + toFancy(cat) + "*\n")

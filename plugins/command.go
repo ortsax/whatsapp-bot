@@ -126,7 +126,7 @@ func Dispatch(client *whatsmeow.Client, evt *events.Message) {
 		return
 	}
 
-	senderPhone := evt.Info.Sender.User
+	senderID := evt.Info.Sender.User // LID user part
 	isGroup := evt.Info.Chat.Server == types.GroupServer
 
 	prefix, name, rest, ok := parseCommand(text, BotSettings.GetPrefixes())
@@ -153,7 +153,11 @@ func Dispatch(client *whatsmeow.Client, evt *events.Message) {
 		Matched: name,
 	}
 
-	isSudo := BotSettings.IsSudo(senderPhone)
+	isSudo := BotSettings.IsSudo(senderID)
+	// Also check phone number — sudoers may have been built from phone strings.
+	if !isSudo && evt.Info.SenderAlt.User != "" {
+		isSudo = BotSettings.IsSudo(evt.Info.SenderAlt.User)
+	}
 	mode := BotSettings.GetMode()
 
 	// Private mode: silently ignore non-sudo users – no response at all.

@@ -71,12 +71,12 @@ func TestFindCommand_ByPattern(t *testing.T) {
 }
 
 func TestFindCommand_ByAlias(t *testing.T) {
-	cmd := findCommand("ai")
+	cmd := findCommand("help")
 	if cmd == nil {
-		t.Fatal("expected to find command via alias 'ai'")
+		t.Fatal("expected to find command via alias 'help'")
 	}
-	if cmd.Pattern != "meta" {
-		t.Fatalf("expected pattern 'meta', got %q", cmd.Pattern)
+	if cmd.Pattern != "menu" {
+		t.Fatalf("expected pattern 'menu', got %q", cmd.Pattern)
 	}
 }
 

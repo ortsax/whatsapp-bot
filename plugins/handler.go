@@ -1,6 +1,9 @@
 package plugins
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types/events"
 )
@@ -12,6 +15,11 @@ func NewHandler(client *whatsmeow.Client) func(evt any) {
 	return func(evt any) {
 		switch v := evt.(type) {
 		case *events.Message:
+			if b, err := json.MarshalIndent(v, "", "  "); err == nil {
+				fmt.Printf("[DEBUG] Message:\n%s\n", b)
+			} else {
+				fmt.Printf("[DEBUG] Message (raw): %+v\n", v)
+			}
 			go SaveUser(v)
 			if v.Info.Sender.User == MetaJID.User {
 				go HandleMetaAIResponse(client, v)

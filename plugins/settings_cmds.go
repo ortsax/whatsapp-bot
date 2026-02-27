@@ -34,26 +34,54 @@ func init() {
 		IsSudo:   true,
 		Category: "settings",
 		Func: func(ctx *Context) error {
-			if len(ctx.Args) < 2 {
+			if len(ctx.Args) < 1 {
 				ctx.Reply(T().SetSudoUsage)
 				return nil
 			}
 			action := strings.ToLower(ctx.Args[0])
-			phone := ctx.Args[1]
+
+			// Target: reply (no arg), @mention, bare phone, or LID.
+			targetArg := ""
+			if len(ctx.Args) >= 2 {
+				targetArg = ctx.Args[1]
+			}
+			phone, lid := ResolveTarget(ctx, targetArg)
+			if phone == "" && lid == "" {
+				ctx.Reply(T().SetSudoUsage)
+				return nil
+			}
+
+			display := phone
+			if display == "" {
+				display = lid
+			}
+
 			switch action {
 			case "add":
-				BotSettings.AddSudo(phone)
+				if phone != "" {
+					BotSettings.AddSudo(phone)
+				}
+				if lid != "" {
+					BotSettings.AddSudo(lid)
+				}
 				if err := SaveSettings(); err != nil {
 					ctx.Reply(fmt.Sprintf(T().SaveFailed, err.Error()))
 					return err
 				}
-				ctx.Reply(fmt.Sprintf(T().SudoAdded, phone))
+				ctx.Reply(fmt.Sprintf(T().SudoAdded, display))
 			case "remove":
-				if BotSettings.RemoveSudo(phone) {
+				removed := false
+				if phone != "" && BotSettings.RemoveSudo(phone) {
+					removed = true
+				}
+				if lid != "" && BotSettings.RemoveSudo(lid) {
+					removed = true
+				}
+				if removed {
 					_ = SaveSettings()
-					ctx.Reply(fmt.Sprintf(T().SudoRemoved, phone))
+					ctx.Reply(fmt.Sprintf(T().SudoRemoved, display))
 				} else {
-					ctx.Reply(fmt.Sprintf(T().SudoNotFound, phone))
+					ctx.Reply(fmt.Sprintf(T().SudoNotFound, display))
 				}
 			default:
 				ctx.Reply(T().UnknownAction)

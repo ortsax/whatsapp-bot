@@ -29,6 +29,43 @@ import (
 //	-ldflags "-X main.sourceDir=/path/to/src"
 var sourceDir string
 
+// ── CLI presentation helpers ──────────────────────────────────────────────────
+
+// startSpinner prints a rotating spinner with msg until the returned stop
+// function is called. stop(done) clears the line and prints done.
+func startSpinner(msg string) func(done string) {
+	frames := []byte{'|', '/', '-', '\\'}
+	stop := make(chan string, 1)
+	go func() {
+		i := 0
+		for {
+			select {
+			case doneMsg := <-stop:
+				fmt.Printf("\r%-70s\r%s\n", "", doneMsg)
+				return
+			default:
+				fmt.Printf("\r%c  %s", frames[i%len(frames)], msg)
+				i++
+				time.Sleep(80 * time.Millisecond)
+			}
+		}
+	}()
+	return func(done string) { stop <- done }
+}
+
+// cliProgress prints an in-place progress bar.
+// When pct == 100 it prints a newline to finalise the line.
+func cliProgress(pct int, label string) {
+	const w = 28
+	filled := w * pct / 100
+	bar := strings.Repeat("━", filled) + strings.Repeat("─", w-filled)
+	if pct == 100 {
+		fmt.Printf("\r[%s] %3d%%  %-28s\n", bar, pct, label)
+	} else {
+		fmt.Printf("\r[%s] %3d%%  %-28s", bar, pct, label)
+	}
+}
+
 // loadEnv loads .env if present, otherwise falls back to .env.example.
 func loadEnv() {
 	if err := godotenv.Load(".env"); err != nil {
@@ -146,10 +183,26 @@ func main() {
 	client := whatsmeow.NewClient(deviceStore, clientLog)
 	client.AddEventHandler(plugins.NewHandler(client))
 
+	// Wire update command with source dir and restart capability.
+	plugins.InitSourceDir(sourceDir)
+	plugins.SetRestartFunc(func() {
+		client.Disconnect()
+		exe, _ := os.Executable()
+		exe, _ = filepath.EvalSymlinks(exe)
+		cmd := exec.Command(exe, os.Args[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		_ = cmd.Start()
+		os.Exit(0)
+	})
+
+	stopSpin := startSpinner("Connecting to WhatsApp...")
 	err = client.Connect()
 	if err != nil {
+		stopSpin("Connection failed.")
 		panic(err)
 	}
+	stopSpin("Connected.")
 
 	if client.Store.ID == nil {
 		if *phoneArg == "" {
@@ -191,55 +244,85 @@ func runUpdate() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Pulling latest changes...")
-	pull := exec.Command("git", "-C", sourceDir, "pull")
+	cliProgress(0, "Fetching latest changes...")
+	fetch := exec.Command("git", "-C", sourceDir, "fetch", "origin", "--quiet")
+	fetch.Stderr = os.Stderr
+	if err := fetch.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "\ngit fetch failed: %v\n", err)
+		os.Exit(1)
+	}
+	cliProgress(15, "Fetch complete")
+
+	// Check if there is anything to pull.
+	countOut, _ := exec.Command("git", "-C", sourceDir, "rev-list", "HEAD..FETCH_HEAD", "--count").Output()
+	if strings.TrimSpace(string(countOut)) == "0" {
+		cliProgress(100, "Already up to date.")
+		return
+	}
+
+	cliProgress(20, "Pulling changes...")
+	pull := exec.Command("git", "-C", sourceDir, "pull", "--ff-only")
 	pull.Stdout = os.Stdout
 	pull.Stderr = os.Stderr
 	if err := pull.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "git pull failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\ngit pull failed: %v\n", err)
 		os.Exit(1)
 	}
+	cliProgress(45, "Changes pulled")
 
 	exePath, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not determine executable path: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\ncould not determine executable path: %v\n", err)
 		os.Exit(1)
 	}
-	exePath, err = filepath.EvalSymlinks(exePath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "could not resolve executable path: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Build to a temp file first so we never leave a half-written binary.
+	exePath, _ = filepath.EvalSymlinks(exePath)
 	tmpPath := exePath + ".new"
 	ldflags := fmt.Sprintf("-s -w -X main.sourceDir=%s", sourceDir)
 
-	fmt.Println("Building new binary...")
-	build := exec.Command("go", "build",
-		"-ldflags", ldflags,
-		"-trimpath",
-		"-o", tmpPath,
-		".",
-	)
-	build.Dir = sourceDir
-	build.Stdout = os.Stdout
-	build.Stderr = os.Stderr
-	if err := build.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "build failed: %v\n", err)
+	cliProgress(50, "Building new binary...")
+	buildDone := make(chan error, 1)
+	go func() {
+		cmd := exec.Command("go", "build",
+			"-ldflags", ldflags,
+			"-trimpath",
+			"-o", tmpPath,
+			".",
+		)
+		cmd.Dir = sourceDir
+		buildDone <- cmd.Run()
+	}()
+
+	// Animate 52→88% while build runs (tick every 500ms).
+	ticker := time.NewTicker(500 * time.Millisecond)
+	pct := 52
+	var buildErr error
+buildLoop:
+	for {
+		select {
+		case buildErr = <-buildDone:
+			ticker.Stop()
+			break buildLoop
+		case <-ticker.C:
+			if pct < 88 {
+				pct++
+				cliProgress(pct, "Building new binary...")
+			}
+		}
+	}
+
+	if buildErr != nil {
 		_ = os.Remove(tmpPath)
+		fmt.Fprintf(os.Stderr, "\nbuild failed: %v\n", buildErr)
 		os.Exit(1)
 	}
+	cliProgress(90, "Build complete")
 
 	if err := os.Rename(tmpPath, exePath); err != nil {
-		// On Windows the running binary may be locked; give clear guidance.
-		fmt.Fprintf(os.Stderr, "could not replace binary (stop the bot first if it is running): %v\n", err)
-		fmt.Fprintf(os.Stderr, "New binary saved at: %s\n", tmpPath)
-		fmt.Fprintf(os.Stderr, "Replace manually with:\n  mv %s %s\n", tmpPath, exePath)
+		fmt.Fprintf(os.Stderr, "\ncould not replace binary (stop the bot first if it is running): %v\n", err)
+		fmt.Fprintf(os.Stderr, "New binary saved at: %s\nRename manually: mv %s %s\n", tmpPath, tmpPath, exePath)
 		os.Exit(1)
 	}
-
-	fmt.Println("Orstax updated successfully.")
+	cliProgress(100, "Orstax updated successfully.")
 }
 
 // runListSessions opens the database and prints all paired sessions.

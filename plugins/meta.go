@@ -88,7 +88,6 @@ func HandleMetaAIResponse(client *whatsmeow.Client, v *events.Message) {
 func init() {
 	Register(&Command{
 		Pattern:  "meta",
-		Aliases:  []string{"ai"},
 		Category: "ai",
 		Func: func(ctx *Context) error {
 			query := ctx.Text

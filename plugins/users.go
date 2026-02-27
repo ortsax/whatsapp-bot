@@ -67,46 +67,44 @@ func GetAltID(id string) string {
 	return ""
 }
 
-// SaveUser persists a LID↔PN mapping for the message sender when both can be
-// inferred from the event. It is a no-op if the mapping already exists.
+// SaveUser persists LID↔PN mappings extracted from the message event.
 //
 // Cases handled:
-//  1. Incoming DM: sender is LID, chat JID is the sender's PN.
-//  2. Our own outgoing message: sender is our LID, ownerPhone is our PN.
+//  1. Any incoming message: SenderAlt carries the sender's phone directly.
+//  2. Our own outgoing message: ownerPhone is our PN, Sender is our LID.
+//  3. Our own outgoing DM: Chat is recipient's LID, RecipientAlt is their phone.
 func SaveUser(evt *events.Message) {
 	if lidResolver == nil {
 		return
 	}
 
+	ctx := context.Background()
 	sender := evt.Info.Sender
-	chat := evt.Info.Chat
 
-	var lidUser, pnUser string
-
-	switch {
-	case sender.Server == types.HiddenUserServer &&
-		!evt.Info.IsGroup &&
-		chat.Server == types.DefaultUserServer &&
-		!evt.Info.IsFromMe:
-		// Incoming DM: sender is the other person's LID, chat is their PN.
-		lidUser = sender.User
-		pnUser = chat.User
-
-	case sender.Server == types.HiddenUserServer &&
-		evt.Info.IsFromMe &&
-		ownerPhone != "":
-		// Our own message: sender is our LID, ownerPhone is our PN.
-		lidUser = sender.User
-		pnUser = ownerPhone
-	}
-
-	if lidUser == "" || pnUser == "" {
+	if sender.Server != types.HiddenUserServer {
 		return
 	}
+	senderLID := types.NewJID(sender.User, types.HiddenUserServer)
 
-	lidJID := types.NewJID(lidUser, types.HiddenUserServer)
-	pnJID := types.NewJID(pnUser, types.DefaultUserServer)
-	_ = lidResolver.PutLIDMapping(context.Background(), lidJID, pnJID)
+	// Case 1: WhatsApp provides the sender's phone in SenderAlt for all
+	// incoming messages (DM and group). This is the most reliable source.
+	if evt.Info.SenderAlt.User != "" && evt.Info.SenderAlt.Server == types.DefaultUserServer {
+		pnJID := types.NewJID(evt.Info.SenderAlt.User, types.DefaultUserServer)
+		_ = lidResolver.PutLIDMapping(ctx, senderLID, pnJID)
+	} else if evt.Info.IsFromMe && ownerPhone != "" {
+		// Case 2: Our own outgoing message — sender LID is ours.
+		pnJID := types.NewJID(ownerPhone, types.DefaultUserServer)
+		_ = lidResolver.PutLIDMapping(ctx, senderLID, pnJID)
+	}
+
+	// Case 3: Outgoing DM — Chat is the recipient's LID, RecipientAlt is their phone.
+	if evt.Info.IsFromMe && !evt.Info.IsGroup &&
+		evt.Info.Chat.Server == types.HiddenUserServer &&
+		evt.Info.RecipientAlt.User != "" && evt.Info.RecipientAlt.Server == types.DefaultUserServer {
+		recipLID := types.NewJID(evt.Info.Chat.User, types.HiddenUserServer)
+		recipPN := types.NewJID(evt.Info.RecipientAlt.User, types.DefaultUserServer)
+		_ = lidResolver.PutLIDMapping(ctx, recipLID, recipPN)
+	}
 }
 
 // BootstrapOwnerSudoers adds the owner's phone (and LID if already resolvable)
@@ -130,4 +128,68 @@ func BootstrapOwnerSudoers() {
 	if changed {
 		_ = SaveSettings()
 	}
+}
+
+// ResolveTarget determines the target user for commands like setsudo.
+// Resolution order:
+//  1. Reply — if arg is empty or "reply", use contextInfo.participant (quoted sender's LID).
+//  2. Mention — if arg starts with "@", strip it and treat as phone.
+//  3. Explicit — arg is a bare phone number or LID string.
+//
+// Returns (phone, lid); either may be empty when the store has no mapping yet.
+func ResolveTarget(ctx *Context, arg string) (phone, lid string) {
+	// 1. Reply: get the quoted message sender from contextInfo.
+	if arg == "" || strings.EqualFold(arg, "reply") {
+		participant := ctx.Event.Message.GetExtendedTextMessage().GetContextInfo().GetParticipant()
+		if participant != "" {
+			return resolveJIDString(participant)
+		}
+		if arg != "" {
+			// "reply" was explicit but there is no quoted message.
+			return "", ""
+		}
+	}
+
+	// 2. @mention: strip "@" and treat remainder as phone.
+	arg = strings.TrimPrefix(arg, "@")
+
+	// 3. Explicit phone or LID.
+	return resolveJIDString(arg)
+}
+
+// resolveJIDString takes a JID string, bare phone number, or LID user part
+// and returns (phone, lid) by consulting the LID store for whichever side is
+// missing.
+func resolveJIDString(s string) (phone, lid string) {
+	if s == "" {
+		return "", ""
+	}
+
+	var jid types.JID
+	if strings.Contains(s, "@") {
+		parsed, err := types.ParseJID(s)
+		if err != nil {
+			return "", ""
+		}
+		// Drop device suffix (e.g. "270613692313713:10@lid" → "270613692313713@lid").
+		parsed.Device = 0
+		jid = parsed
+	} else {
+		// Bare string: could be a phone number or a LID user part.
+		// Heuristic: LID numbers tend to be longer (15 digits); phone numbers
+		// are 7–15 digits. We can't reliably distinguish, so try phone first
+		// (most common user input) then fall back to LID lookup.
+		s = strings.TrimPrefix(s, "+")
+		jid = types.NewJID(s, types.DefaultUserServer)
+	}
+
+	switch jid.Server {
+	case types.DefaultUserServer:
+		phone = jid.User
+		lid = GetAltID(jid.String())
+	case types.HiddenUserServer:
+		lid = jid.User
+		phone = GetAltID(jid.String())
+	}
+	return
 }
