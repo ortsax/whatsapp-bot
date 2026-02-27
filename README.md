@@ -10,19 +10,19 @@ Pick the script for your platform and run it with elevated privileges. The scrip
 
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
-irm https://raw.githubusercontent.com/ortsax/whatsapp-bot/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/ortsax/whatsapp-bot/master/scripts/install.ps1 | iex
 ```
 
 **Linux**
 
 ```bash
-sudo bash <(curl -fsSL https://raw.githubusercontent.com/ortsax/whatsapp-bot/main/scripts/install-linux.sh)
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/ortsax/whatsapp-bot/master/scripts/install-linux.sh)
 ```
 
 **macOS**
 
 ```bash
-sudo bash <(curl -fsSL https://raw.githubusercontent.com/ortsax/whatsapp-bot/main/scripts/install-mac.sh)
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/ortsax/whatsapp-bot/master/scripts/install-mac.sh)
 ```
 
 Once complete you will see:
