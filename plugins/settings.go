@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"slices"
 	"database/sql"
 	"encoding/json"
 	"strings"
@@ -17,11 +18,14 @@ const (
 
 // Settings holds the in-memory bot configuration.
 type Settings struct {
-	mu       sync.RWMutex
-	Prefixes []string
-	Sudoers  []string
-	Mode     Mode
-	Language string
+	mu           sync.RWMutex
+	Prefixes     []string
+	Sudoers      []string
+	BannedUsers  []string
+	Mode         Mode
+	Language     string
+	DisabledCmds []string
+	GCDisabled   bool
 }
 
 // BotSettings is the global settings instance, seeded with defaults.
@@ -96,6 +100,18 @@ func LoadSettings() error {
 			BotSettings.Mode = Mode(value)
 		case "language":
 			BotSettings.Language = value
+		case "banned_users":
+			var b []string
+			if json.Unmarshal([]byte(value), &b) == nil {
+				BotSettings.BannedUsers = b
+			}
+		case "disabled_cmds":
+			var d []string
+			if json.Unmarshal([]byte(value), &d) == nil {
+				BotSettings.DisabledCmds = d
+			}
+		case "gc_disabled":
+			BotSettings.GCDisabled = value == "true"
 		}
 	}
 	return rows.Err()
@@ -110,12 +126,21 @@ func SaveSettings() error {
 	BotSettings.mu.RLock()
 	prefixes := BotSettings.Prefixes
 	sudoers := BotSettings.Sudoers
+	bannedUsers := BotSettings.BannedUsers
 	mode := BotSettings.Mode
 	language := BotSettings.Language
+	disabledCmds := BotSettings.DisabledCmds
+	gcDisabled := BotSettings.GCDisabled
 	BotSettings.mu.RUnlock()
 
 	pData, _ := json.Marshal(prefixes)
 	sData, _ := json.Marshal(sudoers)
+	bData, _ := json.Marshal(bannedUsers)
+	dData, _ := json.Marshal(disabledCmds)
+	gcStr := "false"
+	if gcDisabled {
+		gcStr = "true"
+	}
 
 	upsert := `INSERT INTO bot_settings (user, key, value) VALUES (?, ?, ?)
 		ON CONFLICT(user, key) DO UPDATE SET value = excluded.value`
@@ -127,8 +152,11 @@ func SaveSettings() error {
 	for _, row := range [][2]string{
 		{"prefixes", string(pData)},
 		{"sudoers", string(sData)},
+		{"banned_users", string(bData)},
 		{"mode", string(mode)},
 		{"language", language},
+		{"disabled_cmds", string(dData)},
+		{"gc_disabled", gcStr},
 	} {
 		if _, err = tx.Exec(upsert, settingsUser, row[0], row[1]); err != nil {
 			tx.Rollback()
@@ -220,4 +248,89 @@ func (s *Settings) SetLanguage(lang string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.Language = lang
+}
+
+// DisableCmd adds name (lowercased) to the disabled-commands list.
+func (s *Settings) DisableCmd(name string) {
+	name = strings.ToLower(name)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, d := range s.DisabledCmds {
+		if d == name {
+			return
+		}
+	}
+	s.DisabledCmds = append(s.DisabledCmds, name)
+}
+
+// EnableCmd removes name from the disabled-commands list. Returns true if it was present.
+func (s *Settings) EnableCmd(name string) bool {
+	name = strings.ToLower(name)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, d := range s.DisabledCmds {
+		if d == name {
+			s.DisabledCmds = append(s.DisabledCmds[:i], s.DisabledCmds[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// IsCmdDisabled reports whether name (or any of its aliases) is disabled.
+func (s *Settings) IsCmdDisabled(name string) bool {
+	name = strings.ToLower(name)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, d := range s.DisabledCmds {
+		if d == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Settings) SetGCDisabled(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.GCDisabled = v
+}
+
+func (s *Settings) IsGCDisabled() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.GCDisabled
+}
+
+func (s *Settings) BanUser(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if slices.Contains(s.BannedUsers, id) {
+			return
+		}
+	s.BannedUsers = append(s.BannedUsers, id)
+}
+
+// UnbanUser removes id from the ban list and returns true if it was present.
+func (s *Settings) UnbanUser(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, b := range s.BannedUsers {
+		if b == id {
+			s.BannedUsers = append(s.BannedUsers[:i], s.BannedUsers[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Settings) IsBanned(id string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, b := range s.BannedUsers {
+		if b == id {
+			return true
+		}
+	}
+	return false
 }

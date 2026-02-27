@@ -129,6 +129,11 @@ func Dispatch(client *whatsmeow.Client, evt *events.Message) {
 	senderID := evt.Info.Sender.User // LID user part
 	isGroup := evt.Info.Chat.Server == types.GroupServer
 
+	// Silently ignore all group messages when group chat responses are off.
+	if isGroup && BotSettings.IsGCDisabled() {
+		return
+	}
+
 	prefix, name, rest, ok := parseCommand(text, BotSettings.GetPrefixes())
 	if !ok {
 		return
@@ -158,6 +163,15 @@ func Dispatch(client *whatsmeow.Client, evt *events.Message) {
 	if !isSudo && evt.Info.SenderAlt.User != "" {
 		isSudo = BotSettings.IsSudo(evt.Info.SenderAlt.User)
 	}
+
+	// Banned users are silently ignored — no response given.
+	isBanned := BotSettings.IsBanned(senderID)
+	if !isBanned && evt.Info.SenderAlt.User != "" {
+		isBanned = BotSettings.IsBanned(evt.Info.SenderAlt.User)
+	}
+	if isBanned {
+		return
+	}
 	mode := BotSettings.GetMode()
 
 	// Private mode: silently ignore non-sudo users – no response at all.
@@ -172,6 +186,11 @@ func Dispatch(client *whatsmeow.Client, evt *events.Message) {
 
 	if cmd.IsSudo && !isSudo {
 		ctx.Reply(T().SudoOnly)
+		return
+	}
+
+	if BotSettings.IsCmdDisabled(name) {
+		ctx.Reply(T().CmdIsDisabled)
 		return
 	}
 

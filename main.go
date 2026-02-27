@@ -35,22 +35,28 @@ var sourceDir string
 // function is called. stop(done) clears the line and prints done.
 func startSpinner(msg string) func(done string) {
 	frames := []byte{'|', '/', '-', '\\'}
-	stop := make(chan string, 1)
+	stop := make(chan string)   // unbuffered — send blocks until goroutine receives
+	finished := make(chan struct{})
 	go func() {
 		i := 0
+		ticker := time.NewTicker(80 * time.Millisecond)
+		defer ticker.Stop()
 		for {
 			select {
 			case doneMsg := <-stop:
 				fmt.Printf("\r%-70s\r%s\n", "", doneMsg)
+				close(finished)
 				return
-			default:
+			case <-ticker.C:
 				fmt.Printf("\r%c  %s", frames[i%len(frames)], msg)
 				i++
-				time.Sleep(80 * time.Millisecond)
 			}
 		}
 	}()
-	return func(done string) { stop <- done }
+	return func(doneMsg string) {
+		stop <- doneMsg // blocks until goroutine receives and clears the line
+		<-finished      // blocks until done message is printed
+	}
 }
 
 // cliProgress prints an in-place progress bar.

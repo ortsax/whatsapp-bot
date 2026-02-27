@@ -34,6 +34,17 @@ func HandleMetaAIResponse(client *whatsmeow.Client, v *events.Message) {
 	var responseText string
 	resID := v.Message.GetMessageContextInfo().GetBotMetadata().GetBotResponseID()
 
+	// Check for image response from Meta AI (e.g. image generation).
+	if img := v.Message.GetImageMessage(); img != nil {
+		metaMu.Lock()
+		targetJID, ok := pendingReplies[v.Info.Sender.String()]
+		metaMu.Unlock()
+		if ok {
+			client.SendMessage(context.Background(), targetJID, &waProto.Message{ImageMessage: img}) //nolint:errcheck
+		}
+		return
+	}
+
 	if v.Message.Conversation != nil {
 		responseText = v.Message.GetConversation()
 	} else if v.Message.ExtendedTextMessage != nil {
@@ -70,15 +81,13 @@ func HandleMetaAIResponse(client *whatsmeow.Client, v *events.Message) {
 		editMsg := client.BuildEdit(targetJID, msgID, &waProto.Message{
 			Conversation: proto.String(responseText),
 		})
-		_, err := client.SendMessage(context.Background(), targetJID, editMsg)
-		if err == nil {
+		if _, err := client.SendMessage(context.Background(), targetJID, editMsg); err == nil {
 			lastProcessedResponse[resID] = responseText
 		}
 	} else {
-		resp, err := client.SendMessage(context.Background(), targetJID, &waProto.Message{
+		if resp, err := client.SendMessage(context.Background(), targetJID, &waProto.Message{
 			Conversation: proto.String(responseText),
-		})
-		if err == nil {
+		}); err == nil {
 			sentMessageIDs[resID] = resp.ID
 			lastProcessedResponse[resID] = responseText
 		}
@@ -92,22 +101,33 @@ func init() {
 		Func: func(ctx *Context) error {
 			query := ctx.Text
 
-			// Build the message to forward to Meta AI.
-			// If the user's message contains an image or video, forward that
-			// media along with the query as its caption.
 			var outMsg *waProto.Message
 
+			// Case 1: the message itself is an image or video (caption = ".meta query").
 			if img := ctx.Event.Message.GetImageMessage(); img != nil {
-				if query != "" {
-					img.Caption = proto.String(query)
-				}
+				img.Caption = proto.String(query)
 				outMsg = &waProto.Message{ImageMessage: img}
 			} else if vid := ctx.Event.Message.GetVideoMessage(); vid != nil {
-				if query != "" {
-					vid.Caption = proto.String(query)
-				}
+				vid.Caption = proto.String(query)
 				outMsg = &waProto.Message{VideoMessage: vid}
-			} else {
+			} else if ext := ctx.Event.Message.GetExtendedTextMessage(); ext != nil {
+				// Case 2: the user replied to a media message with ".meta query".
+				// Preserve the full ExtendedTextMessage (including contextInfo /
+				// quotedMessage) so Meta AI can see the referenced media.
+				// Just replace the visible text with the parsed query.
+				quoted := ext.GetContextInfo().GetQuotedMessage()
+				if quoted.GetImageMessage() != nil || quoted.GetVideoMessage() != nil {
+					if query == "" {
+						ctx.Reply(T().MetaUsage)
+						return nil
+					}
+					ext.Text = proto.String(query)
+					outMsg = &waProto.Message{ExtendedTextMessage: ext}
+				}
+			}
+
+			// Case 3: plain text query (no media involved).
+			if outMsg == nil {
 				if query == "" {
 					ctx.Reply(T().MetaUsage)
 					return nil
@@ -115,10 +135,12 @@ func init() {
 				outMsg = &waProto.Message{Conversation: proto.String(query)}
 			}
 
-			_, err := ctx.Client.SendMessage(context.Background(), MetaJID, outMsg)
+			resp, err := ctx.Client.SendMessage(context.Background(), MetaJID, outMsg)
 			if err != nil {
 				return err
 			}
+			_ = resp
+
 			// Store which chat to relay the response back to.
 			metaMu.Lock()
 			pendingReplies[MetaJID.String()] = ctx.Event.Info.Chat
