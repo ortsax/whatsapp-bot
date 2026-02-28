@@ -278,12 +278,39 @@ func main() {
 
 // ── Management command handlers ───────────────────────────────────────────────
 
+// candidateSourceDirs returns the standard install-time source directories
+// to check when the binary was not built with -X main.sourceDir.
+func candidateSourceDirs() []string {
+	candidates := []string{"/opt/orstax/src"}
+	if pf := os.Getenv("ProgramFiles"); pf != "" {
+		candidates = append([]string{filepath.Join(pf, "orstax", "src")}, candidates...)
+	}
+	return candidates
+}
+
+// resolveSourceDir returns sourceDir if set, otherwise searches well-known
+// install locations for a valid git repository.
+func resolveSourceDir() string {
+	if sourceDir != "" {
+		return sourceDir
+	}
+	for _, dir := range candidateSourceDirs() {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+	}
+	return ""
+}
+
 // runUpdate pulls the latest source and rebuilds the binary in-place.
 func runUpdate() {
-	if sourceDir == "" {
-		fmt.Fprintln(os.Stderr, "error: this binary was not built with a sourceDir.\nPlease reinstall using the install script.")
+	src := resolveSourceDir()
+	if src == "" {
+		fmt.Fprintln(os.Stderr, "error: could not locate the orstax source directory.")
+		fmt.Fprintln(os.Stderr, "Please reinstall using the install script.")
 		os.Exit(1)
 	}
+	sourceDir = src
 
 	cliProgress(0, "Fetching latest changes...")
 	fetch := exec.Command("git", "-C", sourceDir, "fetch", "origin", "--quiet")
