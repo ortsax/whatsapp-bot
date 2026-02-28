@@ -5,17 +5,21 @@ set -euo pipefail
 
 # ── Configuration ────────────────────────────────────────────────────────────
 REPO_URL="https://github.com/ortsax/whatsapp-bot.git"
-SRC_DIR="/opt/orstax/src"
+INSTALL_DIR="/opt/orstax"
+SRC_DIR="$INSTALL_DIR/src"
 BIN_PATH="/usr/local/bin/orstax"
 GO_FALLBACK="1.25.0"
 GOROOT="/usr/local/go"
 # ─────────────────────────────────────────────────────────────────────────────
 
-step()  { echo; echo "==> $*"; }
-ok()    { echo "    $*"; }
-err()   { echo "    ERROR: $*" >&2; exit 1; }
+CYAN='\033[0;36m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
 
-# ── Require root ─────────────────────────────────────────────────────────────
+step() { echo; echo -e "${CYAN}==> $*${RESET}"; }
+ok()   { echo -e "    ${GREEN}$*${RESET}"; }
+warn() { echo -e "    ${YELLOW}$*${RESET}"; }
+err()  { echo -e "\n    ${RED}ERROR: $*${RESET}" >&2; exit 1; }
+
+# ── Require root ──────────────────────────────────────────────────────────────
 if [ "$(id -u)" -ne 0 ]; then
     err "This script must be run as root. Try: sudo bash $0"
 fi
@@ -30,21 +34,11 @@ case "$ARCH" in
 esac
 ok "Architecture: $GOARCH"
 
-# ── Detect latest Go version ─────────────────────────────────────────────────
-step "Detecting latest Go version"
-GO_VERSION=$(curl -fsSL "https://go.dev/dl/?mode=json" 2>/dev/null \
-    | grep -o '"version":"go[^"]*"' | head -1 \
-    | grep -o '[0-9][0-9.]*' | head -1) || true
-GO_VERSION="${GO_VERSION:-$GO_FALLBACK}"
-ok "Using Go $GO_VERSION"
-
-# ── Check / install Git ──────────────────────────────────────────────────────
+# ── Check / install Git ───────────────────────────────────────────────────────
 step "Checking Git"
 if ! command -v git &>/dev/null; then
-    # Xcode Command Line Tools includes git
     ok "Installing Xcode Command Line Tools (includes git)"
     xcode-select --install 2>/dev/null || true
-    # Wait for git to become available
     for i in $(seq 1 30); do
         command -v git &>/dev/null && break
         sleep 2
@@ -53,26 +47,24 @@ if ! command -v git &>/dev/null; then
 fi
 ok "Git: $(git --version)"
 
-# ── Check / install Go ───────────────────────────────────────────────────────
+# ── Check / install Go ────────────────────────────────────────────────────────
 step "Checking Go"
-NEED_GO=true
-
-# Prefer Homebrew if available
 if command -v brew &>/dev/null; then
     if brew list go &>/dev/null 2>&1; then
         ok "Go already installed via Homebrew: $(go version)"
-        NEED_GO=false
     else
         ok "Installing Go via Homebrew"
         brew install go
-        NEED_GO=false
     fi
 elif command -v go &>/dev/null; then
     ok "Go already installed: $(go version)"
-    NEED_GO=false
-fi
+else
+    step "Detecting latest Go version"
+    GO_VERSION=$(curl -fsSL "https://go.dev/dl/?mode=json" 2>/dev/null \
+        | grep -o '"version":"go[^"]*"' | head -1 \
+        | grep -o '[0-9][0-9.]*' | head -1) || true
+    GO_VERSION="${GO_VERSION:-$GO_FALLBACK}"
 
-if [ "$NEED_GO" = true ]; then
     step "Installing Go $GO_VERSION from go.dev"
     TARBALL="/tmp/go${GO_VERSION}.darwin-${GOARCH}.tar.gz"
     DL_URL="https://go.dev/dl/go${GO_VERSION}.darwin-${GOARCH}.tar.gz"
@@ -81,8 +73,6 @@ if [ "$NEED_GO" = true ]; then
     rm -rf "$GOROOT"
     tar -C /usr/local -xzf "$TARBALL"
     rm "$TARBALL"
-
-    # Add to PATH system-wide via /etc/paths.d
     echo '/usr/local/go/bin' > /etc/paths.d/go
     export PATH="$PATH:/usr/local/go/bin"
     ok "Go $GO_VERSION installed"
@@ -90,39 +80,37 @@ fi
 
 export PATH="$PATH:$GOROOT/bin"
 
-# ── Ensure /usr/local/bin exists ─────────────────────────────────────────────
-mkdir -p /usr/local/bin
-
-# ── Clone or update repo ─────────────────────────────────────────────────────
+# ── Clone or update repo ──────────────────────────────────────────────────────
 step "Setting up source"
-mkdir -p "$(dirname "$SRC_DIR")"
+mkdir -p "$INSTALL_DIR"
+mkdir -p /usr/local/bin
 if [ -d "$SRC_DIR/.git" ]; then
     ok "Updating existing clone"
-    git -C "$SRC_DIR" pull
+    git -C "$SRC_DIR" pull --ff-only
 else
     ok "Cloning $REPO_URL"
     git clone "$REPO_URL" "$SRC_DIR"
 fi
 
-# ── Build ────────────────────────────────────────────────────────────────────
+# ── Build ─────────────────────────────────────────────────────────────────────
 step "Building orstax"
-cd "$SRC_DIR"
 CGO_ENABLED=0 go build \
     -ldflags="-s -w -X main.sourceDir=${SRC_DIR}" \
     -trimpath \
     -o "$BIN_PATH" \
-    .
+    "$SRC_DIR"
 chmod +x "$BIN_PATH"
-ok "Binary written to $BIN_PATH"
+ok "Binary: $BIN_PATH"
 
-# ── Done ─────────────────────────────────────────────────────────────────────
+# ── Done ──────────────────────────────────────────────────────────────────────
 echo
-echo "Orstax is now installed"
+echo -e "${GREEN}  Orstax is installed!${RESET}"
 echo
-echo "  Run with    orstax --phone-number <international-number>"
-echo "  Update with orstax -update"
-echo "  Sessions    orstax -list-sessions"
-echo "              orstax -delete-session <phone>"
-echo "              orstax -reset-session  <phone>"
+echo "  Run with      orstax --phone-number <number>"
+echo "  Update with   orstax --update"
+echo "  Sessions      orstax --list-sessions"
+echo "                orstax --delete-session <phone>"
+echo "                orstax --reset-session  <phone>"
 echo
-echo "Note: open a new terminal for PATH changes to take effect."
+echo -e "${YELLOW}  Note: open a new terminal for PATH changes to take effect.${RESET}"
+
