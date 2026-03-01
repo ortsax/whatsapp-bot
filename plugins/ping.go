@@ -16,7 +16,7 @@ func init() {
 		Func: func(ctx *Context) error {
 			start := time.Now()
 
-			resp, err := ctx.Reply(T().Pong)
+			resp, err := ctx.ReplySync(T().Pong)
 			if err != nil {
 				return err
 			}

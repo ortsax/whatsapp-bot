@@ -96,7 +96,7 @@ func init() {
 
 			// ── .update — check only ──────────────────────────────────────────
 			if mode == "" {
-				resp, err := ctx.Reply("Checking for updates...")
+				resp, err := ctx.ReplySync("Checking for updates...")
 				if err != nil {
 					return err
 				}
@@ -128,7 +128,7 @@ func init() {
 			}
 
 			chatJID := ctx.Event.Info.Chat
-			resp, err := ctx.Reply("Updating Orstax...\n" + updateBar(0) + "\n  Starting...")
+			resp, err := ctx.ReplySync("Updating Orstax...\n" + updateBar(0) + "\n  Starting...")
 			if err != nil {
 				return err
 			}
