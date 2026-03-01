@@ -10,7 +10,7 @@ import (
 type Strings struct {
 	// ping
 	Pong        string
-	PongLatency string // fmt: latency ms
+	PongLatency string // fmt: latency in ms (float, e.g. "Pong (1.23ms)")
 
 	// meta
 	MetaUsage string
@@ -126,7 +126,7 @@ func T() *Strings {
 var translations = map[string]*Strings{
 	"en": {
 		Pong:            "Pong",
-		PongLatency:     "Pong (%dms)",
+		PongLatency:     "Pong (%.2fms)",
 		MetaUsage:       "Provide a query to send to Meta AI.\nUsage: meta <question>",
 		GroupOnly:       "This command is restricted to group chats.",
 		SudoOnly:        "This command is restricted to authorised users.",
@@ -169,7 +169,7 @@ var translations = map[string]*Strings{
 	},
 	"es": {
 		Pong:            "Pong",
-		PongLatency:     "Pong (%dms)",
+		PongLatency:     "Pong (%.2fms)",
 		MetaUsage:       "Proporcione una consulta para enviar a Meta AI.\nUso: meta <pregunta>",
 		GroupOnly:       "Este comando está restringido a conversaciones de grupo.",
 		SudoOnly:        "Este comando está restringido a usuarios autorizados.",
@@ -212,7 +212,7 @@ var translations = map[string]*Strings{
 	},
 	"pt": {
 		Pong:            "Pong",
-		PongLatency:     "Pong (%dms)",
+		PongLatency:     "Pong (%.2fms)",
 		MetaUsage:       "Forneça uma consulta para enviar ao Meta AI.\nUtilização: meta <pergunta>",
 		GroupOnly:       "Este comando está restrito a conversas em grupo.",
 		SudoOnly:        "Este comando está restrito a utilizadores autorizados.",
@@ -255,7 +255,7 @@ var translations = map[string]*Strings{
 	},
 	"ar": {
 		Pong:            "بونغ",
-		PongLatency:     "بونغ (%dms)",
+		PongLatency:     "بونغ (%.2fms)",
 		MetaUsage:       "أدخل استفساراً لإرساله إلى Meta AI.\nالاستخدام: meta <سؤال>",
 		GroupOnly:       "هذا الأمر مقتصر على المجموعات.",
 		SudoOnly:        "هذا الأمر مقتصر على المستخدمين المخوَّلين.",
@@ -298,7 +298,7 @@ var translations = map[string]*Strings{
 	},
 	"hi": {
 		Pong:            "पोंग",
-		PongLatency:     "पोंग (%dms)",
+		PongLatency:     "पोंग (%.2fms)",
 		MetaUsage:       "Meta AI को भेजने के लिए एक प्रश्न दर्ज करें।\nउपयोग: meta <प्रश्न>",
 		GroupOnly:       "यह आदेश केवल समूह वार्तालापों में उपयोग किया जा सकता है।",
 		SudoOnly:        "यह आदेश केवल अधिकृत उपयोगकर्ताओं के लिए है।",
@@ -341,7 +341,7 @@ var translations = map[string]*Strings{
 	},
 	"fr": {
 		Pong:            "Pong",
-		PongLatency:     "Pong (%dms)",
+		PongLatency:     "Pong (%.2fms)",
 		MetaUsage:       "Veuillez saisir une requête à envoyer à Meta AI.\nUtilisation : meta <question>",
 		GroupOnly:       "Cette commande est réservée aux conversations de groupe.",
 		SudoOnly:        "Cette commande est réservée aux utilisateurs autorisés.",
@@ -384,7 +384,7 @@ var translations = map[string]*Strings{
 	},
 	"de": {
 		Pong:            "Pong",
-		PongLatency:     "Pong (%dms)",
+		PongLatency:     "Pong (%.2fms)",
 		MetaUsage:       "Geben Sie eine Anfrage für Meta AI ein.\nVerwendung: meta <Frage>",
 		GroupOnly:       "Dieser Befehl ist auf Gruppenunterhaltungen beschränkt.",
 		SudoOnly:        "Dieser Befehl ist auf autorisierte Benutzer beschränkt.",
@@ -427,7 +427,7 @@ var translations = map[string]*Strings{
 	},
 	"ru": {
 		Pong:            "Понг",
-		PongLatency:     "Понг (%dms)",
+		PongLatency:     "Понг (%.2fms)",
 		MetaUsage:       "Введите запрос для отправки в Meta AI.\nИспользование: meta <вопрос>",
 		GroupOnly:       "Эта команда доступна только в групповых чатах.",
 		SudoOnly:        "Эта команда доступна только авторизованным пользователям.",
@@ -470,7 +470,7 @@ var translations = map[string]*Strings{
 	},
 	"tr": {
 		Pong:            "Pong",
-		PongLatency:     "Pong (%dms)",
+		PongLatency:     "Pong (%.2fms)",
 		MetaUsage:       "Meta AI'ya göndermek için bir sorgu girin.\nKullanım: meta <soru>",
 		GroupOnly:       "Bu komut yalnızca grup sohbetleriyle sınırlıdır.",
 		SudoOnly:        "Bu komut yalnızca yetkili kullanıcılarla sınırlıdır.",
@@ -513,7 +513,7 @@ var translations = map[string]*Strings{
 	},
 	"sw": {
 		Pong:            "Pong",
-		PongLatency:     "Pong (%dms)",
+		PongLatency:     "Pong (%.2fms)",
 		MetaUsage:       "Ingiza swali la kutuma kwa Meta AI.\nMatumizi: meta <swali>",
 		GroupOnly:       "Amri hii imezuiliwa kwa mazungumzo ya kikundi.",
 		SudoOnly:        "Amri hii imezuiliwa kwa watumiaji walioidhinishwa.",

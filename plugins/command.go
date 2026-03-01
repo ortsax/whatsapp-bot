@@ -3,6 +3,7 @@ package plugins
 import (
 	"context"
 	"strings"
+	"time"
 
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
@@ -23,12 +24,13 @@ type Command struct {
 
 // Context carries per-invocation state passed to command handlers.
 type Context struct {
-	Client  *whatsmeow.Client
-	Event   *events.Message
-	Args    []string // whitespace-split words after the command name
-	Text    string   // everything after the command name (unsplit)
-	Prefix  string   // the matched prefix character(s)
-	Matched string   // the matched command name (lowercased)
+	Client     *whatsmeow.Client
+	Event      *events.Message
+	Args       []string  // whitespace-split words after the command name
+	Text       string    // everything after the command name (unsplit)
+	Prefix     string    // the matched prefix character(s)
+	Matched    string    // the matched command name (lowercased)
+	ReceivedAt time.Time // when the triggering message event was dispatched
 }
 
 // Reply enqueues a plain-text reply and returns immediately with the
@@ -53,6 +55,20 @@ func (c *Context) ReplySync(text string) (whatsmeow.SendResponse, error) {
 		&waProto.Message{Conversation: proto.String(text)},
 		whatsmeow.SendRequestExtra{Timeout: sendTimeout},
 	)
+}
+
+// QueueEdit enqueues a message edit that will run in sendWorker after any
+// currently-queued sends to this chat.  originalID must be the ID of the
+// message to edit (as returned by Reply).
+func (c *Context) QueueEdit(originalID types.MessageID, newText string) {
+	sendQueue <- sendTask{
+		client: c.Client,
+		to:     c.Event.Info.Chat,
+		msg: c.Client.BuildEdit(c.Event.Info.Chat, originalID, &waProto.Message{
+			Conversation: proto.String(newText),
+		}),
+		id: c.Client.GenerateMessageID(),
+	}
 }
 
 var registry []*Command
@@ -138,6 +154,7 @@ func extractText(evt *events.Message) string {
 // Dispatch parses a message event, resolves the matching command, enforces all
 // access checks, and calls the command handler.
 func Dispatch(client *whatsmeow.Client, evt *events.Message) {
+	receivedAt := time.Now() // capture as early as possible
 	text := extractText(evt)
 	if text == "" {
 		return
@@ -167,12 +184,13 @@ func Dispatch(client *whatsmeow.Client, evt *events.Message) {
 	}
 
 	ctx := &Context{
-		Client:  client,
-		Event:   evt,
-		Args:    strings.Fields(rest),
-		Text:    rest,
-		Prefix:  prefix,
-		Matched: name,
+		Client:     client,
+		Event:      evt,
+		Args:       strings.Fields(rest),
+		Text:       rest,
+		Prefix:     prefix,
+		Matched:    name,
+		ReceivedAt: receivedAt,
 	}
 
 	isSudo := BotSettings.IsSudo(senderID)

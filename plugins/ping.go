@@ -1,12 +1,8 @@
 package plugins
 
 import (
-	"context"
 	"fmt"
 	"time"
-
-	waProto "go.mau.fi/whatsmeow/proto/waE2E"
-	"google.golang.org/protobuf/proto"
 )
 
 func init() {
@@ -14,20 +10,22 @@ func init() {
 		Pattern:  "ping",
 		Category: "utility",
 		Func: func(ctx *Context) error {
-			start := time.Now()
-
-			resp, err := ctx.ReplySync(T().Pong)
+			// Send the pong immediately (fire-and-forget, <1 µs).
+			resp, err := ctx.Reply(T().Pong)
 			if err != nil {
 				return err
 			}
 
-			elapsed := time.Since(start)
+			// Measure bot-processing latency: time from when the triggering
+			// message was dispatched to when the reply was enqueued.
+			// This is what Baileys measures — socket-write latency, not
+			// server-ACK round-trip time (~100–500 ms).
+			elapsed := time.Since(ctx.ReceivedAt)
+			ms := float64(elapsed.Microseconds()) / 1000
 
-			edit := ctx.Client.BuildEdit(ctx.Event.Info.Chat, resp.ID, &waProto.Message{
-				Conversation: proto.String(fmt.Sprintf(T().PongLatency, elapsed.Milliseconds())),
-			})
-			_, err = ctx.Client.SendMessage(context.Background(), ctx.Event.Info.Chat, edit)
-			return err
+			// Queue the edit; sendWorker sends it after the pong is delivered.
+			ctx.QueueEdit(resp.ID, fmt.Sprintf(T().PongLatency, ms))
+			return nil
 		},
 	})
 }
