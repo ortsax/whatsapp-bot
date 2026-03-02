@@ -33,8 +33,6 @@ ortsax --phone-number <international-format-number>
 
 A pairing code will be printed. On your phone go to **WhatsApp → Linked Devices → Link a Device → Link with phone number instead** and enter the code.
 
-Pulls the latest source and rebuilds the binary in-place. Stop the bot first on Windows before updating.
-
 ## License
 
 See [LICENSE](LICENSE).
