@@ -1,4 +1,4 @@
-module orstax
+module ortsax
 
 go 1.25.0
 

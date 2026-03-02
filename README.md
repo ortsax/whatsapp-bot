@@ -28,10 +28,10 @@ sudo bash <(curl -fsSL https://raw.githubusercontent.com/ortsax/whatsapp-bot/mas
 Once complete you will see:
 
 ```
-  Orstax is installed!
+  Ortsax is installed!
 
-  Run with      orstax --phone-number <number>
-  Update with   orstax --update
+  Run with      ortsax --phone-number <number>
+  Update with   ortsax --update
 ```
 
 > Open a new terminal after install so the updated PATH takes effect.
@@ -39,7 +39,7 @@ Once complete you will see:
 ## First run — pairing
 
 ```bash
-orstax --phone-number <international-format-number>
+ortsax --phone-number <international-format-number>
 ```
 
 A pairing code will be printed. On your phone go to **WhatsApp → Linked Devices → Link a Device → Link with phone number instead** and enter the code.
@@ -47,14 +47,14 @@ A pairing code will be printed. On your phone go to **WhatsApp → Linked Device
 ## Subsequent runs
 
 ```bash
-orstax
+ortsax
 ```
 
 Press `Ctrl+C` to disconnect.
 
 ## Database
 
-By default Orstax uses a local SQLite file. To use PostgreSQL, create a `.env` file next to the binary:
+By default Ortsax uses a local SQLite file. To use PostgreSQL, create a `.env` file next to the binary:
 
 ```env
 # SQLite (default)

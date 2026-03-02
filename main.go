@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"orstax/plugins"
-	"orstax/store"
-	"orstax/store/sqlstore"
+	"ortsax/plugins"
+	"ortsax/store"
+	"ortsax/store/sqlstore"
 
 	"github.com/joho/godotenv"
 	"go.mau.fi/whatsmeow"
@@ -35,7 +35,7 @@ var sourceDir string
 // function is called. stop(done) clears the line and prints done.
 func startSpinner(msg string) func(done string) {
 	frames := []byte{'|', '/', '-', '\\'}
-	stop := make(chan string)   // unbuffered — send blocks until goroutine receives
+	stop := make(chan string) // unbuffered — send blocks until goroutine receives
 	finished := make(chan struct{})
 	go func() {
 		i := 0
@@ -76,13 +76,13 @@ func cliProgress(pct int, label string) {
 func printHelp() {
 	fmt.Print(`
  ╔══════════════════════════════════════════╗
- ║           ᴏʀsᴛᴀx  WhatsApp Bot           ║
+ ║           Ortsax Menu                    ║
  ╚══════════════════════════════════════════╝
 
- ᴜsᴀɢᴇ
-   orstax [flags]
+ Usage
+   ortsax [flags]
 
- ғʟᴀɢs
+ Flags
    --phone-number  <number>   Phone number (international format) to
                               identify or pair a device
    --update                   Pull latest source and rebuild binary
@@ -91,16 +91,15 @@ func printHelp() {
    --reset-session  <number>  Reset a session so it can be re-paired
    -h, --help                 Show this help screen
 
- ᴇxᴀᴍᴘʟᴇs
-   orstax                           Start the bot (uses stored session)
-   orstax --phone-number 2348000000 Pair a new device
-   orstax --update                  Update to latest version
-   orstax --list-sessions           Show all saved sessions
+ Examples
+   ortsax                           Start the bot (uses stored session)
+   ortsax --phone-number 2348000000 Pair a new device
+   ortsax --update                  Update to latest version
+   ortsax --list-sessions           Show all saved sessions
 
 `)
 	os.Exit(0)
 }
-
 
 func loadEnv() {
 	if err := godotenv.Load(".env"); err != nil {
@@ -166,12 +165,12 @@ func main() {
 
 	// ── CLI flags ────────────────────────────────────────────────────────────
 	flag.Usage = printHelp
-	helpFlag      := flag.Bool("help",            false, "")
-	phoneArg      := flag.String("phone-number",    "", "Phone number (international format) used to identify or pair a device")
-	updateFlag    := flag.Bool("update",             false, "Pull latest source and rebuild the binary in-place")
-	listFlag      := flag.Bool("list-sessions",      false, "List all paired sessions stored in the database")
-	deleteFlag    := flag.String("delete-session",  "", "Permanently delete the session for the given phone number")
-	resetFlag     := flag.String("reset-session",   "", "Reset the session for the given phone number so it can be re-paired")
+	helpFlag := flag.Bool("help", false, "")
+	phoneArg := flag.String("phone-number", "", "Phone number (international format) used to identify or pair a device")
+	updateFlag := flag.Bool("update", false, "Pull latest source and rebuild the binary in-place")
+	listFlag := flag.Bool("list-sessions", false, "List all paired sessions stored in the database")
+	deleteFlag := flag.String("delete-session", "", "Permanently delete the session for the given phone number")
+	resetFlag := flag.String("reset-session", "", "Reset the session for the given phone number so it can be re-paired")
 	flag.Parse()
 
 	if *helpFlag {
@@ -288,12 +287,12 @@ func main() {
 // candidateSourceDirs returns the standard install-time source directories
 // to check when the binary was not built with -X main.sourceDir.
 func candidateSourceDirs() []string {
-	candidates := []string{"/opt/orstax/src"}
+	candidates := []string{"/opt/ortsax/src"}
 	if pd := os.Getenv("ProgramData"); pd != "" {
-		candidates = append([]string{filepath.Join(pd, "orstax", "src")}, candidates...)
+		candidates = append([]string{filepath.Join(pd, "ortsax", "src")}, candidates...)
 	}
 	if pf := os.Getenv("ProgramFiles"); pf != "" {
-		candidates = append(candidates, filepath.Join(pf, "orstax", "src"))
+		candidates = append(candidates, filepath.Join(pf, "ortsax", "src"))
 	}
 	return candidates
 }
@@ -316,7 +315,7 @@ func resolveSourceDir() string {
 func runUpdate() {
 	src := resolveSourceDir()
 	if src == "" {
-		fmt.Fprintln(os.Stderr, "error: could not locate the orstax source directory.")
+		fmt.Fprintln(os.Stderr, "error: could not locate the ortsax source directory.")
 		fmt.Fprintln(os.Stderr, "Please reinstall using the install script.")
 		os.Exit(1)
 	}
@@ -400,7 +399,7 @@ buildLoop:
 		fmt.Fprintf(os.Stderr, "New binary saved at: %s\nRename manually: mv %s %s\n", tmpPath, tmpPath, exePath)
 		os.Exit(1)
 	}
-	cliProgress(100, "Orstax updated successfully.")
+	cliProgress(100, "Ortsax updated successfully.")
 }
 
 // runListSessions opens the database and prints all paired sessions.
