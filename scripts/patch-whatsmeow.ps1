@@ -102,3 +102,37 @@ if ($encodeContent -notlike "*BuildClearChat*") {
 }
 
 Write-Host "`nAll patches applied. Run 'go build ./...' to verify."
+
+# ── 6. Patch store/clientpayload.go — add SetAndroidMode ─────────────────────
+$cpFile = Join-Path $dst "store\clientpayload.go"
+$cpContent = [System.IO.File]::ReadAllText($cpFile)
+
+$androidFunc = @'
+
+// SetAndroidMode configures the client payload to identify as an Android companion,
+// matching Baileys' Browsers.android(name) setup. name is shown on the linked devices list.
+func SetAndroidMode(name string) {
+	DeviceProps.Os = proto.String(name)
+	DeviceProps.PlatformType = waCompanionReg.DeviceProps_ANDROID_PHONE.Enum()
+	BaseClientPayload.UserAgent.Platform = waWa6.ClientPayload_UserAgent_ANDROID.Enum()
+	BaseClientPayload.UserAgent.OsVersion = proto.String("")
+	BaseClientPayload.UserAgent.OsBuildNumber = proto.String("")
+	BaseClientPayload.WebInfo = nil
+}
+
+'@
+
+if ($cpContent -notlike "*SetAndroidMode*") {
+    $anchor = "func SetOSInfo("
+    if ($cpContent.Contains($anchor)) {
+        $cpContent = $cpContent.Replace($anchor, $androidFunc + $anchor)
+        [System.IO.File]::WriteAllText($cpFile, $cpContent)
+        Write-Host "Patched: store/clientpayload.go (SetAndroidMode)"
+    } else {
+        Write-Warning "store/clientpayload.go: anchor not found — patch may need updating"
+    }
+} else {
+    Write-Host "store/clientpayload.go already patched"
+}
+
+Write-Host "`nAll patches applied. Run 'go build ./...' to verify."

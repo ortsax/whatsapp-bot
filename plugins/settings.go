@@ -18,14 +18,17 @@ const (
 
 // Settings holds the in-memory bot configuration.
 type Settings struct {
-	mu           sync.RWMutex
-	Prefixes     []string
-	Sudoers      []string
-	BannedUsers  []string
-	Mode         Mode
-	Language     string
-	DisabledCmds []string
-	GCDisabled   bool
+	mu               sync.RWMutex
+	Prefixes         []string
+	Sudoers          []string
+	BannedUsers      []string
+	Mode             Mode
+	Language         string
+	DisabledCmds     []string
+	GCDisabled       bool
+	AutoSaveStatus   bool
+	AutoLikeStatus   bool
+	AntiDelete       bool
 }
 
 // BotSettings is the global settings instance, seeded with defaults.
@@ -115,6 +118,12 @@ func LoadSettings() error {
 			}
 		case "gc_disabled":
 			BotSettings.GCDisabled = value == "true"
+		case "auto_save_status":
+			BotSettings.AutoSaveStatus = value == "true"
+		case "auto_like_status":
+			BotSettings.AutoLikeStatus = value == "true"
+		case "anti_delete":
+			BotSettings.AntiDelete = value == "true"
 		}
 	}
 	return rows.Err()
@@ -134,6 +143,9 @@ func SaveSettings() error {
 	language := BotSettings.Language
 	disabledCmds := BotSettings.DisabledCmds
 	gcDisabled := BotSettings.GCDisabled
+	autoSaveStatus := BotSettings.AutoSaveStatus
+	autoLikeStatus := BotSettings.AutoLikeStatus
+	antiDelete := BotSettings.AntiDelete
 	BotSettings.mu.RUnlock()
 
 	pData, _ := json.Marshal(prefixes)
@@ -143,6 +155,18 @@ func SaveSettings() error {
 	gcStr := "false"
 	if gcDisabled {
 		gcStr = "true"
+	}
+	autoSaveStr := "false"
+	if autoSaveStatus {
+		autoSaveStr = "true"
+	}
+	autoLikeStr := "false"
+	if autoLikeStatus {
+		autoLikeStr = "true"
+	}
+	antiDeleteStr := "false"
+	if antiDelete {
+		antiDeleteStr = "true"
 	}
 
 	upsert := `INSERT INTO bot_settings (user, key, value) VALUES (?, ?, ?)
@@ -160,6 +184,9 @@ func SaveSettings() error {
 		{"language", language},
 		{"disabled_cmds", string(dData)},
 		{"gc_disabled", gcStr},
+		{"auto_save_status", autoSaveStr},
+		{"auto_like_status", autoLikeStr},
+		{"anti_delete", antiDeleteStr},
 	} {
 		if _, err = tx.Exec(upsert, settingsUser, row[0], row[1]); err != nil {
 			tx.Rollback()

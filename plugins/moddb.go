@@ -52,6 +52,16 @@ func initModTables() error {
 			chat_jid TEXT PRIMARY KEY,
 			enabled  INTEGER DEFAULT 0
 		)`,
+		`CREATE TABLE IF NOT EXISTS antidelete_cache (
+			msg_id       TEXT PRIMARY KEY,
+			chat_jid     TEXT NOT NULL,
+			sender_jid   TEXT NOT NULL,
+			sender_alt   TEXT NOT NULL DEFAULT '',
+			is_from_me   INTEGER NOT NULL DEFAULT 0,
+			msg_ts       INTEGER NOT NULL,
+			message_blob BLOB NOT NULL,
+			cached_at    INTEGER NOT NULL
+		)`,
 	}
 	for _, q := range tables {
 		if _, err := settingsDB.Exec(q); err != nil {
@@ -303,7 +313,7 @@ func setAntistatusEnabled(chatJID string, on bool) {
 		v = 1
 	}
 	settingsDB.Exec(
-		`INSERT INTO antistatus_settings (chat_jid, enabled) VALUES (?, ?)
+		`INSERT INTO antivv_settings (chat_jid, enabled) VALUES (?, ?)
 		 ON CONFLICT(chat_jid) DO UPDATE SET enabled = excluded.enabled`,
 		chatJID, v,
 	)

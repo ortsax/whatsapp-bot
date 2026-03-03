@@ -18,6 +18,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"go.mau.fi/whatsmeow"
+	waStore "go.mau.fi/whatsmeow/store"
 	waLog "go.mau.fi/whatsmeow/util/log"
 
 	_ "github.com/lib/pq"
@@ -220,6 +221,7 @@ func main() {
 	}
 
 	clientLog := waLog.Stdout("Client", "ERROR", true)
+	waStore.SetAndroidMode("WhatsApp")
 	client := whatsmeow.NewClient(deviceStore, clientLog)
 	client.UseRetryMessageStore = true
 	client.AddEventHandler(plugins.NewHandler(client))
@@ -260,7 +262,7 @@ func main() {
 		fmt.Println("Waiting 10 seconds before generating pairing code...")
 		time.Sleep(10 * time.Second)
 
-		code, err := client.PairPhone(ctx, *phoneArg, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+		code, err := client.PairPhone(ctx, *phoneArg, true, whatsmeow.PairClientChrome, "Chrome (Android)")
 		if err != nil {
 			panic(err)
 		}
