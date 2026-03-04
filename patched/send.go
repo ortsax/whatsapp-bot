@@ -371,7 +371,17 @@ func (cli *Client) SendMessage(ctx context.Context, to types.JID, message *waE2E
 	// (everything will explode if you send a message to the same user twice in parallel)
 	cli.messageSendLock.Lock()
 	resp.DebugTimings.Queue = time.Since(start)
-	defer cli.messageSendLock.Unlock()
+	// Release the send lock before waiting for the server ACK so that queued
+	// messages don't pile up behind a 100-500 ms round-trip.  A one-shot func
+	// is used so the defer still fires as a safety-net on unexpected returns.
+	unlocked := false
+	doUnlock := func() {
+		if !unlocked {
+			unlocked = true
+			cli.messageSendLock.Unlock()
+		}
+	}
+	defer doUnlock()
 
 	// Peer message retries aren't implemented yet
 	if !req.Peer {
@@ -412,6 +422,9 @@ func (cli *Client) SendMessage(ctx context.Context, to types.JID, message *waE2E
 		cli.cancelResponse(req.ID, respChan)
 		return
 	}
+	// Message is written to the socket; release the lock now so the next send
+	// in the queue can encrypt and write while we wait for the server ACK.
+	doUnlock()
 	var respNode *waBinary.Node
 	var timeoutChan <-chan time.Time
 	if req.Timeout > 0 {

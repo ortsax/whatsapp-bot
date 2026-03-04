@@ -44,10 +44,11 @@ Get-ChildItem $dst -Recurse | ForEach-Object {
     $_.Attributes = $_.Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly)
 }
 
-# ── 4. Patch send.go — add PinInChatMessage to getEditAttribute ───────────────
+# ── 4. Patch send.go ─────────────────────────────────────────────────────────
 $sendFile = Join-Path $dst "send.go"
 $sendContent = [System.IO.File]::ReadAllText($sendFile)
 
+# 4a. add PinInChatMessage to getEditAttribute
 if ($sendContent -notlike "*EditAttributePinInChat*") {
     # Anchor: closing of the switch + default return — unique in getEditAttribute
     # Handles both LF and CRLF by matching \r?\n
@@ -55,13 +56,55 @@ if ($sendContent -notlike "*EditAttributePinInChat*") {
         '(\r?\n\t\}(\r?\n)\treturn types\.EditAttributeEmpty(\r?\n)\})', `
         "`n`tcase msg.PinInChatMessage != nil:`n`t`treturn types.EditAttributePinInChat`$1"
     if ($patched -eq $sendContent) {
-        Write-Warning "send.go: anchor not found — patch may need updating"
+        Write-Warning "send.go: PinInChatMessage anchor not found — patch may need updating"
     } else {
-        [System.IO.File]::WriteAllText($sendFile, $patched)
+        $sendContent = $patched
         Write-Host "Patched: send.go (PinInChatMessage)"
     }
 } else {
-    Write-Host "send.go already patched"
+    Write-Host "send.go (PinInChatMessage) already patched"
+}
+
+# 4b. Release messageSendLock before the server-ACK wait so queued sends don't
+#     stall behind a 100-500 ms round-trip.  Replace the bare `defer Unlock`
+#     with a one-shot helper and call it right after the message hits the wire.
+if ($sendContent -notlike "*doUnlock*") {
+    # Replace the defer line
+    $patched = $sendContent -replace `
+        'resp\.DebugTimings\.Queue = time\.Since\(start\)\r?\n\tdefer cli\.messageSendLock\.Unlock\(\)', `
+        ("resp.DebugTimings.Queue = time.Since(start)`n" +
+         "`t// Release the send lock before waiting for the server ACK so that queued`n" +
+         "`t// messages don't pile up behind a 100-500 ms round-trip.  A one-shot func`n" +
+         "`t// is used so the defer still fires as a safety-net on unexpected returns.`n" +
+         "`tunlocked := false`n" +
+         "`tdoUnlock := func() {`n" +
+         "`t`tif !unlocked {`n" +
+         "`t`t`tunlocked = true`n" +
+         "`t`t`tcli.messageSendLock.Unlock()`n" +
+         "`t`t}`n" +
+         "`t}`n" +
+         "`tdefer doUnlock()")
+    if ($patched -eq $sendContent) {
+        Write-Warning "send.go: messageSendLock defer anchor not found — patch may need updating"
+    } else {
+        $sendContent = $patched
+        Write-Host "Patched: send.go (early unlock)"
+    }
+
+    # Insert doUnlock() call right before 'var respNode *waBinary.Node' (after send, before ACK wait)
+    $patched = $sendContent -replace `
+        '(\tcli\.cancelResponse\(req\.ID, respChan\)\r?\n\t\treturn\r?\n\t\}\r?\n)\tvar respNode \*waBinary\.Node', `
+        "`$1`t// Message is written to the socket; release the lock now so the next send`n`t// in the queue can encrypt and write while we wait for the server ACK.`n`tdoUnlock()`n`tvar respNode *waBinary.Node"
+    if ($patched -eq $sendContent) {
+        Write-Warning "send.go: early-unlock insertion anchor not found — patch may need updating"
+    } else {
+        $sendContent = $patched
+        Write-Host "Patched: send.go (doUnlock call before ACK wait)"
+    }
+
+    [System.IO.File]::WriteAllText($sendFile, $sendContent)
+} else {
+    Write-Host "send.go (early unlock) already patched"
 }
 
 # ── 5. Patch appstate/encode.go — add BuildClearChat ─────────────────────────
