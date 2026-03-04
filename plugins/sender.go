@@ -25,11 +25,10 @@ const sendTimeout = 20 * time.Second
 const maxConcurrentSends = 8
 
 type sendTask struct {
-	client    *whatsmeow.Client
-	to        types.JID
-	msg       *waProto.Message
-	id        types.MessageID
-	enqueuedAt time.Time // set by Queue helpers for latency tracking
+	client *whatsmeow.Client
+	to     types.JID
+	msg    *waProto.Message
+	id     types.MessageID
 }
 
 // sendQueue buffers fire-and-forget outgoing messages.
@@ -56,11 +55,7 @@ func sendWorker() {
 		sendSem <- struct{}{} // acquire slot (blocks if maxConcurrentSends in flight)
 		go func(t sendTask) {
 			defer func() { <-sendSem }()
-
-			queueWait := time.Since(t.enqueuedAt)
-			start := time.Now()
-
-			resp, err := t.client.SendMessage(
+			_, err := t.client.SendMessage(
 				context.Background(),
 				t.to,
 				t.msg,
@@ -72,25 +67,6 @@ func sendWorker() {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[Send ERROR] %s → %s: %v\n", t.id, t.to, err)
 			}
-
-			total := time.Since(start)
-			dt := resp.DebugTimings
-			// onWire = time until message was written to socket (user-visible send latency)
-			// ack    = server confirmation wait (async, does NOT block next send)
-			onWire := dt.Queue + dt.LIDFetch + dt.Marshal + dt.GetParticipants + dt.GetDevices + dt.GroupEncrypt + dt.PeerEncrypt + dt.Send
-			fmt.Fprintf(os.Stderr,
-				"[Send TIMING] id=%s to=%s  queue_wait=%s on_wire=%s ack=%s total=%s | lock=%s lid=%s enc=%s write=%s retry=%s\n",
-				t.id, t.to,
-				queueWait.Round(time.Millisecond),
-				onWire.Round(time.Millisecond),
-				dt.Resp.Round(time.Millisecond),
-				total.Round(time.Millisecond),
-				dt.Queue.Round(time.Millisecond),
-				dt.LIDFetch.Round(time.Millisecond),
-				(dt.Marshal+dt.GetParticipants+dt.GetDevices+dt.GroupEncrypt+dt.PeerEncrypt).Round(time.Millisecond),
-				dt.Send.Round(time.Millisecond),
-				dt.Retry.Round(time.Millisecond),
-			)
 		}(task)
 	}
 }
@@ -107,10 +83,9 @@ func sendMention(ctx *Context, text string, jids []string) {
 	}
 	id := ctx.Client.GenerateMessageID()
 	sendQueue <- sendTask{
-		client:     ctx.Client,
-		to:         ctx.Event.Info.Chat,
-		msg:        msg,
-		id:         id,
-		enqueuedAt: time.Now(),
+		client: ctx.Client,
+		to:     ctx.Event.Info.Chat,
+		msg:    msg,
+		id:     id,
 	}
 }

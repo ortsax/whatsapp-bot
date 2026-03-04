@@ -14,7 +14,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 	"sort"
 	"strconv"
@@ -1298,9 +1297,7 @@ func (cli *Client) encryptMessageForDevices(
 		sessionAddressToJID[addr] = jid
 	}
 
-	t0Sessions := time.Now()
 	existingSessions, ctx, err := cli.Store.WithCachedSessions(ctx, sessionAddresses)
-	sessionLoadMs := time.Since(t0Sessions)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to prefetch sessions: %w", err)
 	}
@@ -1310,15 +1307,8 @@ func (cli *Client) encryptMessageForDevices(
 			retryDevices = append(retryDevices, sessionAddressToJID[addr])
 		}
 	}
-	fmt.Fprintf(os.Stderr, "[ENC DEBUG] %s: total_devices=%d session_load=%s missing_sessions=%d missing=%v\n",
-		id, len(allDevices), sessionLoadMs.Round(time.Millisecond), len(retryDevices), retryDevices)
-	t0PreKey := time.Now()
 	bundles := cli.fetchPreKeysNoError(ctx, retryDevices)
-	if len(retryDevices) > 0 {
-		fmt.Fprintf(os.Stderr, "[ENC DEBUG] %s: prekey_fetch took=%s\n", id, time.Since(t0PreKey).Round(time.Millisecond))
-	}
 
-	t0Enc := time.Now()
 	for _, jid := range allDevices {
 		plaintext := msgPlaintext
 		if (jid.User == ownJID.User || jid.User == ownLID.User) && dsmPlaintext != nil {
@@ -1343,7 +1333,6 @@ func (cli *Client) encryptMessageForDevices(
 			includeIdentity = true
 		}
 	}
-	fmt.Fprintf(os.Stderr, "[ENC DEBUG] %s: encrypt_loop took=%s\n", id, time.Since(t0Enc).Round(time.Millisecond))
 	err = cli.Store.PutCachedSessions(ctx)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to save cached sessions: %w", err)
