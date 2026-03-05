@@ -73,7 +73,7 @@ func mp3Cmd(ctx *Context) error {
 
 	ctx.Reply(T().MediaProcessing)
 
-	tmp, err := os.MkdirTemp("", "ortsax-mp3-*")
+	tmp, err := os.MkdirTemp("", "alphonse-mp3-*")
 	if err != nil {
 		ctx.Reply(fmt.Sprintf(T().MediaFailed, err.Error()))
 		return nil
@@ -140,7 +140,7 @@ func blackCmd(ctx *Context) error {
 
 	ctx.Reply(T().MediaProcessing)
 
-	tmp, err := os.MkdirTemp("", "ortsax-black-*")
+	tmp, err := os.MkdirTemp("", "alphonse-black-*")
 	if err != nil {
 		ctx.Reply(fmt.Sprintf(T().MediaFailed, err.Error()))
 		return nil
@@ -246,7 +246,7 @@ func trimCmd(ctx *Context) error {
 		mediaType = whatsmeow.MediaVideo
 	}
 
-	tmp, err := os.MkdirTemp("", "ortsax-trim-*")
+	tmp, err := os.MkdirTemp("", "alphonse-trim-*")
 	if err != nil {
 		ctx.Reply(fmt.Sprintf(T().MediaFailed, err.Error()))
 		return nil

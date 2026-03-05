@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"ortsax/store"
+	"alphonse/store"
 )
 
 func TestNoopStore_ReturnsError(t *testing.T) {

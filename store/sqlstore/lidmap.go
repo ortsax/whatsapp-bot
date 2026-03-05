@@ -13,7 +13,7 @@ import (
 	"go.mau.fi/util/dbutil"
 	"go.mau.fi/util/exslices"
 
-	"ortsax/store"
+	"alphonse/store"
 
 	"go.mau.fi/whatsmeow/types"
 )

@@ -7,7 +7,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"ortsax/store/sqlstore"
+	"alphonse/store/sqlstore"
 )
 
 func newTestContainer(t *testing.T) *sqlstore.Container {

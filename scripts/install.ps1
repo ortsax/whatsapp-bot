@@ -4,10 +4,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # ── Configuration ────────────────────────────────────────────────────────────
-$REPO_URL    = "https://github.com/ortsax/whatsapp-bot.git"
-$INSTALL_DIR = "$env:ProgramData\ortsax"
+$REPO_URL    = "https://github.com/ortsax/Alphonse.git"
+$INSTALL_DIR = "$env:ProgramData\alphonse"
 $SRC_DIR     = "$INSTALL_DIR\src"
-$BIN_PATH    = "$INSTALL_DIR\ortsax.exe"
+$BIN_PATH    = "$INSTALL_DIR\alphonse.exe"
 # ─────────────────────────────────────────────────────────────────────────────
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
@@ -50,7 +50,7 @@ if (Test-Path "$SRC_DIR\.git") {
 }
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-Write-Step "Building ortsax"
+Write-Step "Building alphonse"
 $env:CGO_ENABLED = "0"
 
 Push-Location $SRC_DIR
@@ -77,12 +77,12 @@ if (($syspath -split ';') -notcontains $normDir) {
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "  Ortsax is installed!" -ForegroundColor Green
+Write-Host "  Alphonse is installed!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Run with      ortsax --phone-number <number>"
-Write-Host "  Update with   ortsax --update"
-Write-Host "  Sessions      ortsax --list-sessions"
-Write-Host "                ortsax --delete-session <phone>"
-Write-Host "                ortsax --reset-session  <phone>"
+Write-Host "  Run with      alphonse --phone-number <number>"
+Write-Host "  Update with   alphonse --update"
+Write-Host "  Sessions      alphonse --list-sessions"
+Write-Host "                alphonse --delete-session <phone>"
+Write-Host "                alphonse --reset-session  <phone>"
 Write-Host ""
 Write-Host "  Restart your terminal for PATH changes to take effect." -ForegroundColor Yellow

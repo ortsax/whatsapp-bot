@@ -152,7 +152,7 @@ func init() {
 
 			ctx.QueueEdit(loaderID, T().NewGCFetchingIcon)
 
-			imgData, _, err := fetchOGImage("https://github.com/ortsax/whatsapp-bot")
+			imgData, _, err := fetchOGImage("https://github.com/ortsax/Alphonse")
 			if err == nil {
 				jpegData, err := toJPEG(imgData)
 				if err == nil {
@@ -171,7 +171,7 @@ func init() {
 
 			previewURL := "https://chat.whatsapp.com/" + strings.TrimPrefix(inviteLink, "https://chat.whatsapp.com/")
 
-			thumbData, _, ferr := fetchOGImage("https://github.com/ortsax/whatsapp-bot")
+			thumbData, _, ferr := fetchOGImage("https://github.com/ortsax/Alphonse")
 			var thumbJPEG []byte
 			if ferr == nil {
 				thumbJPEG, _ = toJPEG(thumbData)

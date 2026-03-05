@@ -3,7 +3,7 @@ package upgrades_test
 import (
 	"testing"
 
-	"ortsax/store/sqlstore/upgrades"
+	"alphonse/store/sqlstore/upgrades"
 )
 
 func TestTable_Registered(t *testing.T) {

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Ortsax installer for macOS.
+# Alphonse installer for macOS.
 # Must be run as root (sudo bash install-mac.sh).
 set -euo pipefail
 
 # ── Configuration ────────────────────────────────────────────────────────────
-REPO_URL="https://github.com/ortsax/whatsapp-bot.git"
-INSTALL_DIR="/opt/ortsax"
+REPO_URL="https://github.com/ortsax/Alphonse.git"
+INSTALL_DIR="/opt/alphonse"
 SRC_DIR="$INSTALL_DIR/src"
-BIN_PATH="/usr/local/bin/ortsax"
+BIN_PATH="/usr/local/bin/alphonse"
 GO_FALLBACK="1.25.0"
 GOROOT="/usr/local/go"
 # ─────────────────────────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ else
 fi
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-step "Building ortsax"
+step "Building alphonse"
 CGO_ENABLED=0 go build \
     -ldflags="-s -w -X main.sourceDir=${SRC_DIR}" \
     -trimpath \
@@ -104,13 +104,13 @@ ok "Binary: $BIN_PATH"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo
-echo -e "${GREEN}  Ortsax is installed!${RESET}"
+echo -e "${GREEN}  Alphonse is installed!${RESET}"
 echo
-echo "  Run with      ortsax --phone-number <number>"
-echo "  Update with   ortsax --update"
-echo "  Sessions      ortsax --list-sessions"
-echo "                ortsax --delete-session <phone>"
-echo "                ortsax --reset-session  <phone>"
+echo "  Run with      alphonse --phone-number <number>"
+echo "  Update with   alphonse --update"
+echo "  Sessions      alphonse --list-sessions"
+echo "                alphonse --delete-session <phone>"
+echo "                alphonse --reset-session  <phone>"
 echo
 echo -e "${YELLOW}  Note: open a new terminal for PATH changes to take effect.${RESET}"
 

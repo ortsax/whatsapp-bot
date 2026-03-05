@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"ortsax/plugins"
-	"ortsax/store"
-	"ortsax/store/sqlstore"
+	"alphonse/plugins"
+	"alphonse/store"
+	"alphonse/store/sqlstore"
 
 	"github.com/joho/godotenv"
 	"go.mau.fi/whatsmeow"
@@ -77,11 +77,11 @@ func cliProgress(pct int, label string) {
 func printHelp() {
 	fmt.Print(`
  ╔══════════════════════════════════════════╗
- ║           Ortsax Menu                    ║
+ ║           Alphonse Menu                    ║
  ╚══════════════════════════════════════════╝
 
  Usage
-   ortsax [flags]
+   alphonse [flags]
 
  Flags
    --phone-number  <number>   Phone number (international format) to
@@ -93,10 +93,10 @@ func printHelp() {
    -h, --help                 Show this help screen
 
  Examples
-   ortsax                           Start the bot (uses stored session)
-   ortsax --phone-number 2348000000 Pair a new device
-   ortsax --update                  Update to latest version
-   ortsax --list-sessions           Show all saved sessions
+   alphonse                          Start the bot (uses stored session)
+   alphonse --phone-number 2348000000Pair a new device
+   alphonse --update                 Update to latest version
+   alphonse --list-sessions          Show all saved sessions
 
 `)
 	os.Exit(0)
@@ -295,12 +295,12 @@ func main() {
 // candidateSourceDirs returns the standard install-time source directories
 // to check when the binary was not built with -X main.sourceDir.
 func candidateSourceDirs() []string {
-	candidates := []string{"/opt/ortsax/src"}
+	candidates := []string{"/opt/alphonse/src"}
 	if pd := os.Getenv("ProgramData"); pd != "" {
-		candidates = append([]string{filepath.Join(pd, "ortsax", "src")}, candidates...)
+		candidates = append([]string{filepath.Join(pd, "alphonse", "src")}, candidates...)
 	}
 	if pf := os.Getenv("ProgramFiles"); pf != "" {
-		candidates = append(candidates, filepath.Join(pf, "ortsax", "src"))
+		candidates = append(candidates, filepath.Join(pf, "alphonse", "src"))
 	}
 	return candidates
 }
@@ -323,7 +323,7 @@ func resolveSourceDir() string {
 func runUpdate() {
 	src := resolveSourceDir()
 	if src == "" {
-		fmt.Fprintln(os.Stderr, "error: could not locate the ortsax source directory.")
+		fmt.Fprintln(os.Stderr, "error: could not locate the alphonse source directory.")
 		fmt.Fprintln(os.Stderr, "Please reinstall using the install script.")
 		os.Exit(1)
 	}
@@ -407,7 +407,7 @@ buildLoop:
 		fmt.Fprintf(os.Stderr, "New binary saved at: %s\nRename manually: mv %s %s\n", tmpPath, tmpPath, exePath)
 		os.Exit(1)
 	}
-	cliProgress(100, "Ortsax updated successfully.")
+	cliProgress(100, "Alphonse updated successfully.")
 }
 
 // runListSessions opens the database and prints all paired sessions.

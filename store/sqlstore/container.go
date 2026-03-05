@@ -11,8 +11,8 @@ import (
 	"go.mau.fi/util/dbutil"
 	"go.mau.fi/util/random"
 
-	"ortsax/store"
-	"ortsax/store/sqlstore/upgrades"
+	"alphonse/store"
+	"alphonse/store/sqlstore/upgrades"
 
 	"go.mau.fi/whatsmeow/proto/waAdv"
 	"go.mau.fi/whatsmeow/types"

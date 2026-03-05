@@ -1,7 +1,7 @@
 SHELL := powershell.exe
 .SHELLFLAGS := -NoProfile -Command
 
-BINARY := ortsax
+BINARY := alphonse
 
 .PHONY: build run update-whatsmeow patch-whatsmeow
 
