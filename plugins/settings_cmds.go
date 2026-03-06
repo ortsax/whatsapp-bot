@@ -122,6 +122,7 @@ func init() {
 
 	Register(&Command{
 		Pattern:  "setmode",
+		Aliases:  []string{"mode"},
 		IsSudo:   true,
 		Category: "settings",
 		Func: func(ctx *Context) error {
