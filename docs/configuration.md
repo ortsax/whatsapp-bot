@@ -5,6 +5,7 @@ nav_order: 3
 ---
 
 # Configuration
+
 {: .no_toc }
 
 <details open markdown="block">
@@ -20,8 +21,8 @@ nav_order: 3
 
 Alphonse loads `.env` from the current directory first, then from `~/Documents/Alphonse Files/.env`, then falls back to `.env.example`. You can also export variables directly in your shell or service file.
 
-| Variable | Default | Description |
-|---|---|---|
+| Variable       | Default                                  | Description                                              |
+| -------------- | ---------------------------------------- | -------------------------------------------------------- |
 | `DATABASE_URL` | `~/Documents/Alphonse Files/database.db` | SQLite file path **or** `postgres://…` connection string |
 
 ### SQLite (default)
@@ -77,10 +78,10 @@ Default: `.`
 
 ### Mode
 
-| Value | Who can use commands |
-|---|---|
-| `public` | Everyone (default) |
-| `private` | Sudo users only |
+| Value     | Who can use commands |
+| --------- | -------------------- |
+| `public`  | Everyone (default)   |
+| `private` | Sudo users only      |
 
 ```
 .setmode public
@@ -121,12 +122,12 @@ Sudo users bypass all permission checks. The owner is added automatically on fir
 
 When building from source, these ldflags are injected automatically by `make build` and `make release`:
 
-| Flag | Description |
-|---|---|
-| `-X main.Version=x.y.z` | Version string shown by `--version` |
-| `-X main.Commit=<sha>` | Short git commit hash |
-| `-X main.BuildDate=<rfc3339>` | Build timestamp |
-| `-X main.sourceDir=<path>` | Source directory used by `--update` |
+| Flag                          | Description                         |
+| ----------------------------- | ----------------------------------- |
+| `-X main.Version=x.y.z`       | Version string shown by `--version` |
+| `-X main.Commit=<sha>`        | Short git commit hash               |
+| `-X main.BuildDate=<rfc3339>` | Build timestamp                     |
+| `-X main.sourceDir=<path>`    | Source directory used by `--update` |
 
 Manual example:
 

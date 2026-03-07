@@ -5,6 +5,7 @@ nav_order: 4
 ---
 
 # Command Reference
+
 {: .no_toc }
 
 All commands use the configured prefix (default `.`). **Sudo** - sender must be a sudo user or the owner. **Admin** - bot and sender must both be group admins. **Group** - only works in group chats.
@@ -22,15 +23,15 @@ All commands use the configured prefix (default `.`). **Sudo** - sender must be 
 
 These are passed to the `alphonse` binary, not sent in chat.
 
-| Flag | Description |
-|---|---|
-| `--phone-number <number>` | Pair or identify a device |
-| `--update` | Pull latest source and rebuild in-place |
-| `--list-sessions` | List all paired sessions |
-| `--delete-session <number>` | Permanently delete a session |
-| `--reset-session <number>` | Reset a session for re-pairing |
-| `--version` | Print version, commit, and build date |
-| `-h / --help` | Show help |
+| Flag                        | Description                             |
+| --------------------------- | --------------------------------------- |
+| `--phone-number <number>`   | Pair or identify a device               |
+| `--update`                  | Pull latest source and rebuild in-place |
+| `--list-sessions`           | List all paired sessions                |
+| `--delete-session <number>` | Permanently delete a session            |
+| `--reset-session <number>`  | Reset a session for re-pairing          |
+| `--version`                 | Print version, commit, and build date   |
+| `-h / --help`               | Show help                               |
 
 ---
 

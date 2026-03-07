@@ -5,6 +5,7 @@ nav_order: 5
 ---
 
 # Plugin Development
+
 {: .no_toc }
 
 Alphonse uses a simple registration-based plugin system. Every `.go` file inside the `plugins/` package can register one or more commands using `init()` functions — no configuration files, no framework, just Go.
@@ -45,15 +46,15 @@ Place this file anywhere inside `plugins/` and it will be compiled in automatica
 
 ## The Command struct
 
-| Field | Type | Description |
-|---|---|---|
-| `Pattern` | `string` | Primary command name (case-insensitive) |
-| `Aliases` | `[]string` | Alternative names that trigger the same handler |
-| `Category` | `string` | Menu category label (default: `"general"`) |
-| `IsSudo` | `bool` | Only sudo users may invoke this command |
-| `IsAdmin` | `bool` | Bot and sender must both be group admins |
-| `IsGroup` | `bool` | Command only works inside group chats |
-| `Func` | `func(*Context) error` | The command handler |
+| Field      | Type                   | Description                                     |
+| ---------- | ---------------------- | ----------------------------------------------- |
+| `Pattern`  | `string`               | Primary command name (case-insensitive)         |
+| `Aliases`  | `[]string`             | Alternative names that trigger the same handler |
+| `Category` | `string`               | Menu category label (default: `"general"`)      |
+| `IsSudo`   | `bool`                 | Only sudo users may invoke this command         |
+| `IsAdmin`  | `bool`                 | Bot and sender must both be group admins        |
+| `IsGroup`  | `bool`                 | Command only works inside group chats           |
+| `Func`     | `func(*Context) error` | The command handler                             |
 
 ---
 

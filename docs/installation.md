@@ -5,6 +5,7 @@ nav_order: 2
 ---
 
 # Installation
+
 {: .no_toc }
 
 <details open markdown="block">
@@ -20,9 +21,9 @@ nav_order: 2
 
 Two release channels are available:
 
-| Channel | When to use | Link |
-|---|---|---|
-| **Stable** | Production — tested, versioned | [Latest release](https://github.com/ortsax/Alphonse/releases/latest) |
+| Channel     | When to use                               | Link                                                                     |
+| ----------- | ----------------------------------------- | ------------------------------------------------------------------------ |
+| **Stable**  | Production — tested, versioned            | [Latest release](https://github.com/ortsax/Alphonse/releases/latest)     |
 | **Nightly** | Try the newest features (may be unstable) | [Nightly build](https://github.com/ortsax/Alphonse/releases/tag/nightly) |
 
 ---
@@ -58,13 +59,13 @@ docker compose build --no-cache && docker compose up -d
 
 Download the archive for your platform from the [latest release](https://github.com/ortsax/Alphonse/releases/latest):
 
-| Platform | File |
-|---|---|
-| Linux x86-64 | `alphonse_*_linux_amd64.tar.gz` |
-| Linux ARM64 | `alphonse_*_linux_arm64.tar.gz` |
+| Platform              | File                             |
+| --------------------- | -------------------------------- |
+| Linux x86-64          | `alphonse_*_linux_amd64.tar.gz`  |
+| Linux ARM64           | `alphonse_*_linux_arm64.tar.gz`  |
 | macOS (Apple Silicon) | `alphonse_*_darwin_arm64.tar.gz` |
-| macOS (Intel) | `alphonse_*_darwin_amd64.tar.gz` |
-| Windows x86-64 | `alphonse_*_windows_amd64.zip` |
+| macOS (Intel)         | `alphonse_*_darwin_amd64.tar.gz` |
+| Windows x86-64        | `alphonse_*_windows_amd64.zip`   |
 
 Extract the archive and place the binary on your `PATH`.
 
@@ -109,11 +110,11 @@ On your phone open **WhatsApp → Settings → Linked Devices → Link a Device 
 
 ## Session management
 
-| Command | Effect |
-|---|---|
-| `alphonse --list-sessions` | List all paired sessions |
-| `alphonse --delete-session <number>` | Permanently remove a session |
-| `alphonse --reset-session <number>` | Clear a session so it can be re-paired |
+| Command                              | Effect                                 |
+| ------------------------------------ | -------------------------------------- |
+| `alphonse --list-sessions`           | List all paired sessions               |
+| `alphonse --delete-session <number>` | Permanently remove a session           |
+| `alphonse --reset-session <number>`  | Clear a session so it can be re-paired |
 
 ---
 
@@ -142,16 +143,19 @@ make build          # alphonse.exe (Windows) or alphonse (Linux/macOS)
 One-liner install scripts are also available for each platform — they clone the repo, build, and add the binary to `PATH`:
 
 **Linux**
+
 ```bash
 sudo bash <(curl -fsSL https://raw.githubusercontent.com/ortsax/Alphonse/master/scripts/install-linux.sh)
 ```
 
 **macOS**
+
 ```bash
 sudo bash <(curl -fsSL https://raw.githubusercontent.com/ortsax/Alphonse/master/scripts/install-mac.sh)
 ```
 
 **Windows** (PowerShell as Administrator)
+
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
 irm https://raw.githubusercontent.com/ortsax/Alphonse/master/scripts/install.ps1 | iex
