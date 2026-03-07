@@ -13,7 +13,8 @@ type Strings struct {
 	PongLatency string // fmt: latency in ms (float, e.g. "Pong (1.23ms)")
 
 	// meta
-	MetaUsage string
+	MetaUsage           string
+	MetaNonTextWarning  string
 
 	// dispatch
 	GroupOnly string
@@ -311,6 +312,7 @@ var translations = map[string]*Strings{
 		Pong:                    "Pong",
 		PongLatency:             "Pong (%.2fms)",
 		MetaUsage:               "Provide a query to send to Meta AI.\nUsage: meta <question>",
+		MetaNonTextWarning:      "Note: Meta AI can only process text. The quoted media has been ignored.",
 		GroupOnly:               "This command is restricted to group chats.",
 		SudoOnly:                "This command is restricted to authorised users.",
 		SetPrefixUsage:          "Specify one or more command prefixes.\nUsage: setprefix <p1> <p2> ...\nUse the token \"empty\" for a prefix-free entry.\nExample: setprefix . / #",
@@ -486,6 +488,7 @@ var translations = map[string]*Strings{
 		Pong:                    "Pong",
 		PongLatency:             "Pong (%.2fms)",
 		MetaUsage:               "Proporcione una consulta para enviar a Meta AI.\nUso: meta <pregunta>",
+		MetaNonTextWarning:      "Nota: Meta AI solo puede procesar texto. El contenido multimedia citado ha sido ignorado.",
 		GroupOnly:               "Este comando está restringido a conversaciones de grupo.",
 		SudoOnly:                "Este comando está restringido a usuarios autorizados.",
 		SetPrefixUsage:          "Especifique uno o más prefijos de comando.\nUso: setprefix <p1> <p2> ...\nUtilice el símbolo \"empty\" para una entrada sin prefijo.\nEjemplo: setprefix . / #",
@@ -660,6 +663,7 @@ var translations = map[string]*Strings{
 		Pong:                    "Pong",
 		PongLatency:             "Pong (%.2fms)",
 		MetaUsage:               "Forneça uma consulta para enviar ao Meta AI.\nUtilização: meta <pergunta>",
+		MetaNonTextWarning:      "Nota: Meta AI só pode processar texto. A mídia citada foi ignorada.",
 		GroupOnly:               "Este comando está restrito a conversas em grupo.",
 		SudoOnly:                "Este comando está restrito a utilizadores autorizados.",
 		SetPrefixUsage:          "Especifique um ou mais prefixos de comando.\nUtilização: setprefix <p1> <p2> ...\nUtilize o símbolo \"empty\" para uma entrada sem prefixo.\nExemplo: setprefix . / #",
@@ -834,6 +838,7 @@ var translations = map[string]*Strings{
 		Pong:                    "بونغ",
 		PongLatency:             "بونغ (%.2fms)",
 		MetaUsage:               "أدخل استفساراً لإرساله إلى Meta AI.\nالاستخدام: meta <سؤال>",
+		MetaNonTextWarning:      "ملاحظة: لا يدعم Meta AI إلا النصوص. تم تجاهل الوسائط المقتبسة.",
 		GroupOnly:               "هذا الأمر مقتصر على المجموعات.",
 		SudoOnly:                "هذا الأمر مقتصر على المستخدمين المخوَّلين.",
 		SetPrefixUsage:          "حدِّد بادئة واحدة أو أكثر.\nالاستخدام: setprefix <ب1> <ب2> ...\nاستخدم الرمز \"empty\" لإدخال بدون بادئة.\nمثال: setprefix . / #",
@@ -1008,6 +1013,7 @@ var translations = map[string]*Strings{
 		Pong:                    "पोंग",
 		PongLatency:             "पोंग (%.2fms)",
 		MetaUsage:               "Meta AI को भेजने के लिए एक प्रश्न दर्ज करें।\nउपयोग: meta <प्रश्न>",
+		MetaNonTextWarning:      "नोट: Meta AI केवल टेक्स्ट प्रोसेस कर सकता है। उद्धृत मीडिया को अनदेखा किया गया।",
 		GroupOnly:               "यह आदेश केवल समूह वार्तालापों में उपयोग किया जा सकता है।",
 		SudoOnly:                "यह आदेश केवल अधिकृत उपयोगकर्ताओं के लिए है।",
 		SetPrefixUsage:          "एक या अधिक आदेश उपसर्ग निर्दिष्ट करें।\nउपयोग: setprefix <उ1> <उ2> ...\nबिना उपसर्ग की प्रविष्टि के लिए \"empty\" का उपयोग करें।\nउदाहरण: setprefix . / #",
@@ -1182,6 +1188,7 @@ var translations = map[string]*Strings{
 		Pong:                    "Pong",
 		PongLatency:             "Pong (%.2fms)",
 		MetaUsage:               "Veuillez saisir une requête à envoyer à Meta AI.\nUtilisation : meta <question>",
+		MetaNonTextWarning:      "Remarque : Meta AI ne peut traiter que du texte. Le média cité a été ignoré.",
 		GroupOnly:               "Cette commande est réservée aux conversations de groupe.",
 		SudoOnly:                "Cette commande est réservée aux utilisateurs autorisés.",
 		SetPrefixUsage:          "Indiquez un ou plusieurs préfixes de commande.\nUtilisation : setprefix <p1> <p2> ...\nUtilisez le symbole \"empty\" pour une entrée sans préfixe.\nExemple : setprefix . / #",
@@ -1356,6 +1363,7 @@ var translations = map[string]*Strings{
 		Pong:                    "Pong",
 		PongLatency:             "Pong (%.2fms)",
 		MetaUsage:               "Geben Sie eine Anfrage für Meta AI ein.\nVerwendung: meta <Frage>",
+		MetaNonTextWarning:      "Hinweis: Meta AI kann nur Text verarbeiten. Das zitierte Medium wurde ignoriert.",
 		GroupOnly:               "Dieser Befehl ist auf Gruppenunterhaltungen beschränkt.",
 		SudoOnly:                "Dieser Befehl ist auf autorisierte Benutzer beschränkt.",
 		SetPrefixUsage:          "Geben Sie ein oder mehrere Befehlspräfixe an.\nVerwendung: setprefix <p1> <p2> ...\nVerwenden Sie das Symbol \"empty\" für einen Eintrag ohne Präfix.\nBeispiel: setprefix . / #",
@@ -1530,6 +1538,7 @@ var translations = map[string]*Strings{
 		Pong:                    "Понг",
 		PongLatency:             "Понг (%.2fms)",
 		MetaUsage:               "Введите запрос для отправки в Meta AI.\nИспользование: meta <вопрос>",
+		MetaNonTextWarning:      "Примечание: Meta AI поддерживает только текст. Цитируемые медиафайлы проигнорированы.",
 		GroupOnly:               "Эта команда доступна только в групповых чатах.",
 		SudoOnly:                "Эта команда доступна только авторизованным пользователям.",
 		SetPrefixUsage:          "Укажите один или несколько префиксов команды.\nИспользование: setprefix <п1> <п2> ...\nИспользуйте символ \"empty\" для записи без префикса.\nПример: setprefix . / #",
@@ -1704,6 +1713,7 @@ var translations = map[string]*Strings{
 		Pong:                    "Pong",
 		PongLatency:             "Pong (%.2fms)",
 		MetaUsage:               "Meta AI'ya göndermek için bir sorgu girin.\nKullanım: meta <soru>",
+		MetaNonTextWarning:      "Not: Meta AI yalnızca metin işleyebilir. Alıntılanan medya yok sayıldı.",
 		GroupOnly:               "Bu komut yalnızca grup sohbetleriyle sınırlıdır.",
 		SudoOnly:                "Bu komut yalnızca yetkili kullanıcılarla sınırlıdır.",
 		SetPrefixUsage:          "Bir veya daha fazla komut öneki belirtin.\nKullanım: setprefix <ö1> <ö2> ...\nÖneksiz giriş için \"empty\" sembolünü kullanın.\nÖrnek: setprefix . / #",
@@ -1878,6 +1888,7 @@ var translations = map[string]*Strings{
 		Pong:                    "Pong",
 		PongLatency:             "Pong (%.2fms)",
 		MetaUsage:               "Ingiza swali la kutuma kwa Meta AI.\nMatumizi: meta <swali>",
+		MetaNonTextWarning:      "Kumbuka: Meta AI inaweza kusindika maandishi tu. Midia iliyonukuliwa imepuuzwa.",
 		GroupOnly:               "Amri hii imezuiliwa kwa mazungumzo ya kikundi.",
 		SudoOnly:                "Amri hii imezuiliwa kwa watumiaji walioidhinishwa.",
 		SetPrefixUsage:          "Taja kiambishi awali kimoja au zaidi cha amri.\nMatumizi: setprefix <k1> <k2> ...\nTumia neno \"empty\" kwa ingizo lisilo na kiambishi awali.\nMfano: setprefix . / #",

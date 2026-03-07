@@ -66,6 +66,12 @@ func initModTables() error {
 			key   TEXT PRIMARY KEY,
 			value TEXT NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS meta_messages (
+			msg_id        TEXT PRIMARY KEY,
+			chat_jid      TEXT NOT NULL,
+			response_text TEXT NOT NULL,
+			created_at    INTEGER NOT NULL
+		)`,
 	}
 	for _, q := range tables {
 		if _, err := settingsDB.Exec(q); err != nil {
@@ -323,5 +329,32 @@ func setAntistatusEnabled(chatJID string, on bool) {
 		`INSERT INTO antivv_settings (chat_jid, enabled) VALUES (?, ?)
 		 ON CONFLICT(chat_jid) DO UPDATE SET enabled = excluded.enabled`,
 		chatJID, v,
+	)
+}
+
+// ── meta messages ─────────────────────────────────────────────────────────────
+
+// saveMetaMessage stores the ID and text of a Meta AI response the bot forwarded.
+func saveMetaMessage(msgID, chatJID, responseText string) {
+	settingsDB.Exec(
+		`INSERT OR REPLACE INTO meta_messages (msg_id, chat_jid, response_text, created_at) VALUES (?, ?, ?, ?)`,
+		msgID, chatJID, responseText, time.Now().Unix(),
+	)
+}
+
+// getMetaMessageText returns the stored response text for a given message ID.
+func getMetaMessageText(msgID string) (responseText string, found bool) {
+	err := settingsDB.QueryRow(
+		`SELECT response_text FROM meta_messages WHERE msg_id = ?`, msgID,
+	).Scan(&responseText)
+	return responseText, err == nil
+}
+
+// updateMetaMessageText updates the stored text for an already-saved message ID
+// as Meta AI streams longer completions via edits.
+func updateMetaMessageText(msgID, responseText string) {
+	settingsDB.Exec(
+		`UPDATE meta_messages SET response_text = ? WHERE msg_id = ?`,
+		responseText, msgID,
 	)
 }

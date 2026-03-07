@@ -2,6 +2,8 @@ package plugins
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 
 	"go.mau.fi/whatsmeow"
@@ -26,6 +28,27 @@ var lastProcessedResponse = make(map[string]string)
 // sentMessageIDs maps a Meta AI response ID to the message ID we already sent,
 // so we can edit it in place as the streamed response grows.
 var sentMessageIDs = make(map[string]types.MessageID)
+
+// buildMetaQuery constructs a context-aware query string for Meta AI.
+// When pastContext is empty a simpler format without context is returned.
+func buildMetaQuery(senderID, pushName, pastContext, userQuery string) string {
+	if pastContext != "" {
+		return fmt.Sprintf(
+			"User ID: %s, Their Name: %s, Past Context — You Meta AI: %s, Their reply to your message: %s",
+			senderID, pushName, pastContext, userQuery,
+		)
+	}
+	return fmt.Sprintf("User ID: %s, Their Name: %s, Query: %s", senderID, pushName, userQuery)
+}
+
+// senderPushName returns the push name from the event, falling back to the
+// sender's user ID when the name is not available.
+func senderPushName(evt *events.Message) string {
+	if evt.Info.PushName != "" {
+		return evt.Info.PushName
+	}
+	return evt.Info.Sender.User
+}
 
 // HandleMetaAIResponse processes incoming messages from the Meta AI JID and
 // forwards the response text (or edits the previous message) back to the
@@ -83,6 +106,7 @@ func HandleMetaAIResponse(client *whatsmeow.Client, v *events.Message) {
 		})
 		if _, err := client.SendMessage(context.Background(), targetJID, editMsg); err == nil {
 			lastProcessedResponse[resID] = responseText
+			updateMetaMessageText(string(msgID), responseText)
 		}
 	} else {
 		if resp, err := client.SendMessage(context.Background(), targetJID, &waProto.Message{
@@ -90,49 +114,138 @@ func HandleMetaAIResponse(client *whatsmeow.Client, v *events.Message) {
 		}); err == nil {
 			sentMessageIDs[resID] = resp.ID
 			lastProcessedResponse[resID] = responseText
+			saveMetaMessage(string(resp.ID), targetJID.String(), responseText)
 		}
 	}
 }
 
+// handleMetaAutoReply is a moderation hook that detects when a user replies
+// directly to a forwarded Meta AI message (without using the .meta command)
+// and automatically continues the conversation with full context.
+func handleMetaAutoReply(client *whatsmeow.Client, evt *events.Message) {
+	if evt.Info.IsFromMe {
+		return
+	}
+
+	ci := evt.Message.GetExtendedTextMessage().GetContextInfo()
+	if ci == nil {
+		return
+	}
+	stanzaID := ci.GetStanzaID()
+	if stanzaID == "" {
+		return
+	}
+
+	pastResponse, found := getMetaMessageText(stanzaID)
+	if !found {
+		return
+	}
+
+	replyText := evt.Message.GetExtendedTextMessage().GetText()
+	if replyText == "" {
+		return
+	}
+
+	// If the reply looks like a command, let the command handler deal with it.
+	for _, p := range BotSettings.GetPrefixes() {
+		if p != "" && strings.HasPrefix(strings.ToLower(replyText), strings.ToLower(p)) {
+			return
+		}
+	}
+
+	query := buildMetaQuery(evt.Info.Sender.User, senderPushName(evt), pastResponse, replyText)
+	if _, err := client.SendMessage(context.Background(), MetaJID, &waProto.Message{
+		Conversation: proto.String(query),
+	}); err != nil {
+		return
+	}
+
+	metaMu.Lock()
+	pendingReplies[MetaJID.String()] = evt.Info.Chat
+	metaMu.Unlock()
+}
+
 func init() {
+	RegisterModerationHook(handleMetaAutoReply)
+
 	Register(&Command{
 		Pattern:  "meta",
 		Category: "ai",
 		Func: func(ctx *Context) error {
 			query := ctx.Text
+			senderID := ctx.Event.Info.Sender.User
+			pushName := senderPushName(ctx.Event)
 
 			var outMsg *waProto.Message
+			nonTextQuoted := false
 
-			// Case 1: the message itself is an image or video (caption = ".meta query").
-			if img := ctx.Event.Message.GetImageMessage(); img != nil {
-				img.Caption = proto.String(query)
-				outMsg = &waProto.Message{ImageMessage: img}
-			} else if vid := ctx.Event.Message.GetVideoMessage(); vid != nil {
-				vid.Caption = proto.String(query)
-				outMsg = &waProto.Message{VideoMessage: vid}
-			} else if ext := ctx.Event.Message.GetExtendedTextMessage(); ext != nil {
-				// Case 2: the user replied to a media message with ".meta query".
-				// Preserve the full ExtendedTextMessage (including contextInfo /
-				// quotedMessage) so Meta AI can see the referenced media.
-				// Just replace the visible text with the parsed query.
-				quoted := ext.GetContextInfo().GetQuotedMessage()
-				if quoted.GetImageMessage() != nil || quoted.GetVideoMessage() != nil {
-					if query == "" {
-						ctx.Reply(T().MetaUsage)
-						return nil
+			// Inspect any quoted (replied-to) message.
+			ci := ctx.Event.Message.GetExtendedTextMessage().GetContextInfo()
+			if ci != nil {
+				quoted := ci.GetQuotedMessage()
+				stanzaID := ci.GetStanzaID()
+
+				if quoted != nil {
+					// Case A: quoting a forwarded Meta AI response — add full context.
+					if stanzaID != "" {
+						if pastResponse, found := getMetaMessageText(stanzaID); found {
+							if query == "" {
+								ctx.Reply(T().MetaUsage)
+								return nil
+							}
+							q := buildMetaQuery(senderID, pushName, pastResponse, query)
+							outMsg = &waProto.Message{Conversation: proto.String(q)}
+						}
 					}
-					ext.Text = proto.String(query)
-					outMsg = &waProto.Message{ExtendedTextMessage: ext}
+
+					// Case B: quoting a plain text message — include it as context.
+					if outMsg == nil {
+						quotedText := quoted.GetConversation()
+						if quotedText == "" {
+							quotedText = quoted.GetExtendedTextMessage().GetText()
+						}
+						if quotedText != "" {
+							if query == "" {
+								ctx.Reply(T().MetaUsage)
+								return nil
+							}
+							q := fmt.Sprintf(
+								"User ID: %s, Their Name: %s, Quoted context: %s, User query: %s",
+								senderID, pushName, quotedText, query,
+							)
+							outMsg = &waProto.Message{Conversation: proto.String(q)}
+						} else {
+							// Quoted message is non-text (image, video, audio, etc.).
+							nonTextQuoted = true
+						}
+					}
 				}
 			}
 
-			// Case 3: plain text query (no media involved).
+			// Case C: the message itself carries media (caption = ".meta query").
+			if outMsg == nil {
+				if img := ctx.Event.Message.GetImageMessage(); img != nil {
+					img.Caption = proto.String(query)
+					outMsg = &waProto.Message{ImageMessage: img}
+				} else if vid := ctx.Event.Message.GetVideoMessage(); vid != nil {
+					vid.Caption = proto.String(query)
+					outMsg = &waProto.Message{VideoMessage: vid}
+				}
+			}
+
+			// Case D: plain text query with user context.
 			if outMsg == nil {
 				if query == "" {
 					ctx.Reply(T().MetaUsage)
 					return nil
 				}
-				outMsg = &waProto.Message{Conversation: proto.String(query)}
+				q := buildMetaQuery(senderID, pushName, "", query)
+				outMsg = &waProto.Message{Conversation: proto.String(q)}
+			}
+
+			// Warn the user that the quoted media was dropped before sending.
+			if nonTextQuoted {
+				ctx.Reply(T().MetaNonTextWarning)
 			}
 
 			resp, err := ctx.Client.SendMessage(context.Background(), MetaJID, outMsg)
@@ -141,7 +254,6 @@ func init() {
 			}
 			_ = resp
 
-			// Store which chat to relay the response back to.
 			metaMu.Lock()
 			pendingReplies[MetaJID.String()] = ctx.Event.Info.Chat
 			metaMu.Unlock()

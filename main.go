@@ -77,7 +77,7 @@ func cliProgress(pct int, label string) {
 func printHelp() {
 	fmt.Print(`
  ╔══════════════════════════════════════════╗
- ║           Alphonse Menu                    ║
+ ║           Alphonse Menu                  ║
  ╚══════════════════════════════════════════╝
 
  Usage
