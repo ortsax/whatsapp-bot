@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	db "alphonse/sql"
+
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 )
@@ -47,7 +49,7 @@ func init() {
 
 			chatJID := ctx.Event.Info.Chat.String()
 			userID := p.JID.User
-			count := addWarn(chatJID, userID)
+			count := db.AddWarn(chatJID, userID)
 
 			reasonStr := ""
 			if reason != "" {
@@ -61,7 +63,7 @@ func init() {
 				ctx.Client.UpdateGroupParticipants(context.Background(), ctx.Event.Info.Chat,
 					[]types.JID{p.JID.ToNonAD()}, whatsmeow.ParticipantChangeRemove)
 				ctx.Reply(T().WarnKicked)
-				resetWarns(chatJID, userID)
+				db.ResetWarns(chatJID, userID)
 			}
 			return nil
 		},

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	db "alphonse/sql"
 )
 
 func init() {
@@ -48,11 +50,11 @@ func init() {
 					return nil
 				}
 				userID := p.JID.User
-				if !isShhed(chatJID, userID) {
+				if !db.IsShhed(chatJID, userID) {
 					ctx.Reply(T().ShhNotShhed)
 					return nil
 				}
-				setUnShh(chatJID, userID)
+				db.UnShh(chatJID, userID)
 				senderJIDStr := p.JID.ToNonAD().String()
 				sendMention(ctx, fmt.Sprintf(T().ShhOffOK, "@"+userID), []string{senderJIDStr})
 				return nil
@@ -76,11 +78,11 @@ func init() {
 				return nil
 			}
 			userID := p.JID.User
-			if isShhed(chatJID, userID) {
+			if db.IsShhed(chatJID, userID) {
 				ctx.Reply(T().ShhAlready)
 				return nil
 			}
-			setShh(chatJID, userID)
+			db.SetShh(chatJID, userID)
 			senderJIDStr := p.JID.ToNonAD().String()
 			sendMention(ctx, fmt.Sprintf(T().ShhOK, "@"+userID), []string{senderJIDStr})
 			return nil

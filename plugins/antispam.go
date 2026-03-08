@@ -3,6 +3,8 @@ package plugins
 import (
 	"fmt"
 	"strings"
+
+	db "alphonse/sql"
 )
 
 func init() {
@@ -16,17 +18,17 @@ func init() {
 			args := ctx.Args
 
 			if len(args) == 0 {
-				mode := getAntispamMode(chatJID)
+				mode := db.GetAntispamMode(chatJID)
 				ctx.Reply(menuHeader("antispam") + fmt.Sprintf(T().AntispamStatus, mode))
 				return nil
 			}
 
 			switch strings.ToLower(args[0]) {
 			case "on":
-				setAntispamMode(chatJID, "on")
+				db.SetAntispamMode(chatJID, "on")
 				ctx.Reply(T().AntispamOn)
 			case "off":
-				setAntispamMode(chatJID, "off")
+				db.SetAntispamMode(chatJID, "off")
 				ctx.Reply(T().AntispamOff)
 			case "allow":
 				arg := ""
@@ -42,7 +44,7 @@ func init() {
 				if userID == "" {
 					userID = lid
 				}
-				setAntispamWhitelist(chatJID, userID, true)
+				db.SetAntispamWhitelist(chatJID, userID, true)
 				ctx.Reply(T().AntispamAllowed)
 			default:
 				ctx.Reply(T().AntispamUsage)

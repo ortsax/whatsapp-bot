@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 
+	db "alphonse/sql"
+
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
@@ -106,7 +108,7 @@ func HandleMetaAIResponse(client *whatsmeow.Client, v *events.Message) {
 		})
 		if _, err := client.SendMessage(context.Background(), targetJID, editMsg); err == nil {
 			lastProcessedResponse[resID] = responseText
-			updateMetaMessageText(string(msgID), responseText)
+			db.UpdateMetaMessageText(string(msgID), responseText)
 		}
 	} else {
 		if resp, err := client.SendMessage(context.Background(), targetJID, &waProto.Message{
@@ -114,7 +116,7 @@ func HandleMetaAIResponse(client *whatsmeow.Client, v *events.Message) {
 		}); err == nil {
 			sentMessageIDs[resID] = resp.ID
 			lastProcessedResponse[resID] = responseText
-			saveMetaMessage(string(resp.ID), targetJID.String(), responseText)
+			db.SaveMetaMessage(string(resp.ID), targetJID.String(), responseText)
 		}
 	}
 }
@@ -136,7 +138,7 @@ func handleMetaAutoReply(client *whatsmeow.Client, evt *events.Message) {
 		return
 	}
 
-	pastResponse, found := getMetaMessageText(stanzaID)
+	pastResponse, found := db.GetMetaMessageText(stanzaID)
 	if !found {
 		return
 	}
@@ -188,7 +190,7 @@ func init() {
 				if quoted != nil {
 					// Case A: quoting a forwarded Meta AI response — add full context.
 					if stanzaID != "" {
-						if pastResponse, found := getMetaMessageText(stanzaID); found {
+						if pastResponse, found := db.GetMetaMessageText(stanzaID); found {
 							if query == "" {
 								ctx.Reply(T().MetaUsage)
 								return nil

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	db "alphonse/sql"
+
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
@@ -22,16 +24,14 @@ func init() {
 		defer ticker.Stop()
 		for range ticker.C {
 			cutoff := time.Now().Add(-msgCacheTTL).Unix()
-			if settingsDB != nil {
-				settingsDB.Exec(`DELETE FROM antidelete_cache WHERE cached_at < ?`, cutoff)
-			}
+			db.PruneCache(cutoff)
 		}
 	}()
 }
 
 // cacheMessage serialises the message proto and stores it in the DB.
 func cacheMessage(evt *events.Message) {
-	if evt.Message.GetProtocolMessage() != nil || settingsDB == nil {
+	if evt.Message.GetProtocolMessage() != nil {
 		return
 	}
 	blob, err := proto.Marshal(evt.Message)
@@ -46,18 +46,15 @@ func cacheMessage(evt *events.Message) {
 	if evt.Info.IsFromMe {
 		fromMe = 1
 	}
-	settingsDB.Exec(
-		`INSERT OR REPLACE INTO antidelete_cache
-		 (msg_id, chat_jid, sender_jid, sender_alt, is_from_me, msg_ts, message_blob, cached_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+	db.InsertCachedMessage(
 		string(evt.Info.ID),
 		evt.Info.Chat.String(),
 		evt.Info.Sender.String(),
 		altJID,
 		fromMe,
 		evt.Info.Timestamp.Unix(),
-		blob,
 		time.Now().Unix(),
+		blob,
 	)
 }
 
@@ -72,35 +69,20 @@ type dbCachedMsg struct {
 
 // popCachedMessage fetches and immediately deletes the cached entry.
 func popCachedMessage(msgID string) (*dbCachedMsg, bool) {
-	if settingsDB == nil {
+	row, ok := db.PopCachedMessage(msgID)
+	if !ok {
 		return nil, false
 	}
-	var (
-		chatJID, senderJID, senderAlt string
-		isFromMe                      int
-		msgTS                         int64
-		blob                          []byte
-	)
-	err := settingsDB.QueryRow(
-		`SELECT chat_jid, sender_jid, sender_alt, is_from_me, msg_ts, message_blob
-		 FROM antidelete_cache WHERE msg_id = ?`, msgID,
-	).Scan(&chatJID, &senderJID, &senderAlt, &isFromMe, &msgTS, &blob)
-	if err != nil {
-		return nil, false
-	}
-	// Delete immediately — task done.
-	settingsDB.Exec(`DELETE FROM antidelete_cache WHERE msg_id = ?`, msgID)
-
 	msg := &waProto.Message{}
-	if err := proto.Unmarshal(blob, msg); err != nil {
+	if err := proto.Unmarshal(row.Blob, msg); err != nil {
 		return nil, false
 	}
 	return &dbCachedMsg{
-		ChatJID:   chatJID,
-		SenderJID: senderJID,
-		SenderAlt: senderAlt,
-		IsFromMe:  isFromMe == 1,
-		MsgTS:     msgTS,
+		ChatJID:   row.ChatJID,
+		SenderJID: row.SenderJID,
+		SenderAlt: row.SenderAlt,
+		IsFromMe:  row.IsFromMe == 1,
+		MsgTS:     row.MsgTS,
 		Message:   msg,
 	}, true
 }

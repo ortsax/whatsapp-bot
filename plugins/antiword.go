@@ -3,6 +3,8 @@ package plugins
 import (
 	"fmt"
 	"strings"
+
+	db "alphonse/sql"
 )
 
 func init() {
@@ -22,7 +24,7 @@ func init() {
 
 			switch strings.ToLower(args[0]) {
 			case "list":
-				words := getAntiwords(chatJID)
+				words := db.GetAntiwords(chatJID)
 				if len(words) == 0 {
 					ctx.Reply(T().AntiwordEmpty)
 					return nil
@@ -34,7 +36,7 @@ func init() {
 					return nil
 				}
 				word := strings.ToLower(args[1])
-				addAntiword(chatJID, word)
+				db.AddAntiword(chatJID, word)
 				ctx.Reply(fmt.Sprintf(T().AntiwordAdded, word))
 			case "remove":
 				if len(args) < 2 {
@@ -42,7 +44,7 @@ func init() {
 					return nil
 				}
 				word := strings.ToLower(args[1])
-				removeAntiword(chatJID, word)
+				db.RemoveAntiword(chatJID, word)
 				ctx.Reply(fmt.Sprintf(T().AntiwordRemoved, word))
 			default:
 				ctx.Reply(T().AntiwordUsage)

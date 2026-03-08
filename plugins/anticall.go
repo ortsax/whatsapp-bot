@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	db "alphonse/sql"
+
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -307,23 +309,10 @@ func matchCallingCode(phone string) string {
 // ── DB persistence ────────────────────────────────────────────────────────────
 
 func loadAnticallSettings() {
-	if settingsDB == nil {
-		return
-	}
-	rows, err := settingsDB.Query(`SELECT key, value FROM anticall_settings`)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-
+	rows := db.GetAnticallRows()
 	anticallMu.Lock()
 	defer anticallMu.Unlock()
-
-	for rows.Next() {
-		var k, v string
-		if rows.Scan(&k, &v) != nil {
-			continue
-		}
+	for k, v := range rows {
 		switch k {
 		case "enabled":
 			anticallEnabled = v == "true"
@@ -341,9 +330,6 @@ func loadAnticallSettings() {
 }
 
 func saveAnticallSettings() {
-	if settingsDB == nil {
-		return
-	}
 	anticallMu.RLock()
 	enabled := anticallEnabled
 	mode := anticallMode
@@ -356,13 +342,9 @@ func saveAnticallSettings() {
 	}
 	codesJSON, _ := json.Marshal(codes)
 
-	upsert := `INSERT INTO anticall_settings (key, value) VALUES (?, ?)
-ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-	for _, row := range [][2]string{
+	db.SaveAnticallRows([][2]string{
 		{"enabled", enabledStr},
 		{"mode", mode},
 		{"codes", string(codesJSON)},
-	} {
-		settingsDB.Exec(upsert, row[0], row[1])
-	}
+	})
 }

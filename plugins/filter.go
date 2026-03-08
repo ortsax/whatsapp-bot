@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	db "alphonse/sql"
+
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
@@ -47,9 +49,9 @@ func filterHook(client *whatsmeow.Client, evt *events.Message) {
 	var found bool
 
 	if isGroup {
-		response, found = matchFilter("group", chatJID, text)
+		response, found = db.MatchFilter("group", chatJID, text)
 	} else {
-		response, found = matchFilter("dm", "dm", text)
+		response, found = db.MatchFilter("dm", "dm", text)
 	}
 
 	if found {
@@ -63,9 +65,9 @@ func filterListCmd(ctx *Context) error {
 	isGroup := ctx.Event.Info.Chat.Server == types.GroupServer
 	var filters map[string]string
 	if isGroup {
-		filters = getFilters("group", ctx.Event.Info.Chat.String())
+		filters = db.GetFilters("group", ctx.Event.Info.Chat.String())
 	} else {
-		filters = getFilters("dm", "dm")
+		filters = db.GetFilters("dm", "dm")
 	}
 	if len(filters) == 0 {
 		ctx.Reply(T().FilterNone)
@@ -91,7 +93,7 @@ func dfilterCmd(ctx *Context) error {
 
 func handleFilterCmd(ctx *Context, scope, chatJID string) error {
 	if len(ctx.Args) == 0 {
-		filters := getFilters(scope, chatJID)
+		filters := db.GetFilters(scope, chatJID)
 		if len(filters) == 0 {
 			ctx.Reply(T().FilterNone)
 			return nil
@@ -120,7 +122,7 @@ func handleFilterCmd(ctx *Context, scope, chatJID string) error {
 			ctx.Reply(T().FilterSetUsage)
 			return nil
 		}
-		setFilter(scope, chatJID, keyword, response)
+		db.SetFilter(scope, chatJID, keyword, response)
 		ctx.Reply(fmt.Sprintf(T().FilterSet, keyword))
 
 	case "del":
@@ -129,7 +131,7 @@ func handleFilterCmd(ctx *Context, scope, chatJID string) error {
 			ctx.Reply(T().FilterDelUsage)
 			return nil
 		}
-		if delFilter(scope, chatJID, keyword) {
+		if db.DelFilter(scope, chatJID, keyword) {
 			ctx.Reply(fmt.Sprintf(T().FilterDeleted, keyword))
 		} else {
 			ctx.Reply(fmt.Sprintf(T().FilterNotFound, keyword))
@@ -137,7 +139,7 @@ func handleFilterCmd(ctx *Context, scope, chatJID string) error {
 
 	case "get":
 		keyword := strings.TrimSpace(rest)
-		filters := getFilters(scope, chatJID)
+		filters := db.GetFilters(scope, chatJID)
 		if resp, ok := filters[keyword]; ok {
 			ctx.Reply(fmt.Sprintf("*%s* → %s", keyword, resp))
 		} else {

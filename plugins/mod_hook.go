@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	db "alphonse/sql"
+
 	"go.mau.fi/whatsmeow"
 	waProto "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
@@ -130,7 +132,7 @@ func moderationHook(client *whatsmeow.Client, evt *events.Message) {
 			text := extractMsgText(evt)
 			_, name, _, ok := parseCommand(text, BotSettings.GetPrefixes())
 			if !ok || name != "afk" {
-				clearAFK(ownerPhone)
+				db.ClearAFK(ownerPhone)
 			}
 		}
 		return
@@ -144,7 +146,7 @@ func moderationHook(client *whatsmeow.Client, evt *events.Message) {
 
 	// ── AFK auto-reply ────────────────────────────────────────────────────────
 	if ownerPhone != "" {
-		if status := getAFK(ownerPhone); status != nil {
+		if status := db.GetAFK(ownerPhone); status != nil {
 			shouldReply := false
 			if !isGroup {
 				shouldReply = true
@@ -263,7 +265,7 @@ func moderationHook(client *whatsmeow.Client, evt *events.Message) {
 	}
 
 	// 0. antistatus
-	if getAntistatusEnabled(chatJID) && isBotAdmin() && !isSenderAdmin() {
+	if db.GetAntistatusEnabled(chatJID) && isBotAdmin() && !isSenderAdmin() {
 		if isGroupStatusMsg(evt) {
 			revokeMsg(client, evt.Info.Chat, evt.Info.Sender, string(evt.Info.ID))
 			senderJIDStr := evt.Info.Sender.ToNonAD().String()
@@ -274,13 +276,13 @@ func moderationHook(client *whatsmeow.Client, evt *events.Message) {
 	}
 
 	// 1. shh
-	if isShhed(chatJID, senderUser) && isBotAdmin() {
+	if db.IsShhed(chatJID, senderUser) && isBotAdmin() {
 		revokeMsg(client, evt.Info.Chat, evt.Info.Sender, string(evt.Info.ID))
 		return
 	}
 
 	// 2. antilink
-	if mode := getAntilinkMode(chatJID); mode != "off" && msgText != "" {
+	if mode := db.GetAntilinkMode(chatJID); mode != "off" && msgText != "" {
 		if isBotAdmin() && !isSenderAdmin() {
 			if urlRegex.MatchString(msgText) {
 				revokeMsg(client, evt.Info.Chat, evt.Info.Sender, string(evt.Info.ID))
@@ -297,7 +299,7 @@ func moderationHook(client *whatsmeow.Client, evt *events.Message) {
 	}
 
 	// 3. antiword
-	if words := getAntiwords(chatJID); len(words) > 0 && msgText != "" {
+	if words := db.GetAntiwords(chatJID); len(words) > 0 && msgText != "" {
 		if isBotAdmin() && !isSenderAdmin() {
 			lower := strings.ToLower(msgText)
 			for _, w := range words {
@@ -310,9 +312,9 @@ func moderationHook(client *whatsmeow.Client, evt *events.Message) {
 	}
 
 	// 4. antispam (group)
-	if getAntispamMode(chatJID) != "off" {
+	if db.GetAntispamMode(chatJID) != "off" {
 		// Skip old messages arriving during device sync.
-		if time.Since(evt.Info.Timestamp) <= 30*time.Second && !isAntispamWhitelisted(chatJID, senderUser) {
+		if time.Since(evt.Info.Timestamp) <= 30*time.Second && !db.IsAntispamWhitelisted(chatJID, senderUser) {
 			spamKey := chatJID + ":" + senderUser
 			spamMu.Lock()
 			now := time.Now()

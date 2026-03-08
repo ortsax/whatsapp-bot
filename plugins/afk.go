@@ -3,6 +3,8 @@ package plugins
 import (
 	"fmt"
 	"strings"
+
+	db "alphonse/sql"
 )
 
 func init() {
@@ -23,19 +25,19 @@ func init() {
 			}
 			switch sub {
 			case "on":
-				existing := getAFK(userKey)
+				existing := db.GetAFK(userKey)
 				msg := ""
 				if existing != nil {
 					msg = existing.Message
 				}
-				setAFK(userKey, msg)
+				db.SetAFK(userKey, msg)
 				ctx.Reply(T().AFKEnabled)
 			case "off":
-				if getAFK(userKey) == nil {
+				if db.GetAFK(userKey) == nil {
 					ctx.Reply(T().AFKNotActive)
 					return nil
 				}
-				clearAFK(userKey)
+				db.ClearAFK(userKey)
 				ctx.Reply(T().AFKOff)
 			case "set":
 				msg := strings.TrimSpace(strings.TrimPrefix(ctx.Text, args[0]))
@@ -43,7 +45,7 @@ func init() {
 					ctx.Reply(T().AFKSetUsage)
 					return nil
 				}
-				setAFK(userKey, msg)
+				db.SetAFK(userKey, msg)
 				ctx.Reply(fmt.Sprintf("%s\nMessage: %s", T().AFKEnabled, msg))
 			default:
 				ctx.Reply(menuHeader("afk") + "on — enable AFK\noff — disable AFK\nset <message> — set custom away message")

@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	db "alphonse/sql"
 )
 
 // Mode controls who can use bot commands.
@@ -39,23 +41,12 @@ var BotSettings = &Settings{
 	Language: "en",
 }
 
-var settingsDB *sql.DB
 var settingsUser string // bare phone number of the bot owner
 
 // InitDB creates the bot_settings table if it doesn't exist.
 // Call this as soon as the database is available (before Connect).
-func InitDB(db *sql.DB) error {
-	settingsDB = db
-	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS bot_settings (
-		user  TEXT NOT NULL,
-		key   TEXT NOT NULL,
-		value TEXT NOT NULL,
-		PRIMARY KEY (user, key)
-	)`)
-	if err != nil {
-		return err
-	}
-	if err := initModTables(); err != nil {
+func InitDB(rawDB *sql.DB) error {
+	if err := db.InitDB(rawDB); err != nil {
 		return err
 	}
 	loadAnticallSettings()
@@ -80,7 +71,7 @@ func LoadSettings() error {
 	if settingsUser == "" {
 		return nil
 	}
-	rows, err := settingsDB.Query(
+	rows, err := db.DB().Query(
 		`SELECT key, value FROM bot_settings WHERE user = ?`, settingsUser)
 	if err != nil {
 		return err
@@ -176,7 +167,7 @@ func SaveSettings() error {
 	upsert := `INSERT INTO bot_settings (user, key, value) VALUES (?, ?, ?)
 		ON CONFLICT(user, key) DO UPDATE SET value = excluded.value`
 
-	tx, err := settingsDB.Begin()
+	tx, err := db.DB().Begin()
 	if err != nil {
 		return err
 	}

@@ -1,105 +1,32 @@
-package plugins
+package db
 
 import (
 	"strings"
 	"time"
 )
 
-func initModTables() error {
-	tables := []string{
-		`CREATE TABLE IF NOT EXISTS warns (
-			chat_jid TEXT,
-			user_id  TEXT,
-			count    INTEGER DEFAULT 0,
-			PRIMARY KEY (chat_jid, user_id)
-		)`,
-		`CREATE TABLE IF NOT EXISTS shh_users (
-			chat_jid TEXT,
-			user_id  TEXT,
-			PRIMARY KEY (chat_jid, user_id)
-		)`,
-		`CREATE TABLE IF NOT EXISTS antilink_settings (
-			chat_jid TEXT PRIMARY KEY,
-			mode     TEXT DEFAULT 'off'
-		)`,
-		`CREATE TABLE IF NOT EXISTS antiword_settings (
-			chat_jid TEXT,
-			word     TEXT,
-			PRIMARY KEY (chat_jid, word)
-		)`,
-		`CREATE TABLE IF NOT EXISTS antispam_settings (
-			chat_jid TEXT PRIMARY KEY,
-			mode     TEXT DEFAULT 'off'
-		)`,
-		`CREATE TABLE IF NOT EXISTS antispam_whitelist (
-			chat_jid TEXT,
-			user_id  TEXT,
-			PRIMARY KEY (chat_jid, user_id)
-		)`,
-		`CREATE TABLE IF NOT EXISTS afk_status (
-			user_id TEXT PRIMARY KEY,
-			message TEXT,
-			set_at  INTEGER
-		)`,
-		`CREATE TABLE IF NOT EXISTS filters (
-			scope    TEXT,
-			chat_jid TEXT,
-			keyword  TEXT,
-			response TEXT,
-			PRIMARY KEY (scope, chat_jid, keyword)
-		)`,
-		`CREATE TABLE IF NOT EXISTS antistatus_settings (
-			chat_jid TEXT PRIMARY KEY,
-			enabled  INTEGER DEFAULT 0
-		)`,
-		`CREATE TABLE IF NOT EXISTS antidelete_cache (
-			msg_id       TEXT PRIMARY KEY,
-			chat_jid     TEXT NOT NULL,
-			sender_jid   TEXT NOT NULL,
-			sender_alt   TEXT NOT NULL DEFAULT '',
-			is_from_me   INTEGER NOT NULL DEFAULT 0,
-			msg_ts       INTEGER NOT NULL,
-			message_blob BLOB NOT NULL,
-			cached_at    INTEGER NOT NULL
-		)`,
-		`CREATE TABLE IF NOT EXISTS anticall_settings (
-			key   TEXT PRIMARY KEY,
-			value TEXT NOT NULL
-		)`,
-		`CREATE TABLE IF NOT EXISTS meta_messages (
-			msg_id        TEXT PRIMARY KEY,
-			chat_jid      TEXT NOT NULL,
-			response_text TEXT NOT NULL,
-			created_at    INTEGER NOT NULL
-		)`,
-	}
-	for _, q := range tables {
-		if _, err := settingsDB.Exec(q); err != nil {
-			return err
-		}
-	}
-	return nil
+// AFKStatus holds an active AFK entry.
+type AFKStatus struct {
+	Message string
+	SetAt   time.Time
 }
-
-// ── anticall ──────────────────────────────────────────────────────────────────
-// loadAnticallSettings is called from InitDB after tables are created.
 
 // ── warns ─────────────────────────────────────────────────────────────────────
 
-func addWarn(chatJID, userID string) int {
+func AddWarn(chatJID, userID string) int {
 	settingsDB.Exec(
 		`INSERT INTO warns (chat_jid, user_id, count) VALUES (?, ?, 1)
 		 ON CONFLICT(chat_jid, user_id) DO UPDATE SET count = count + 1`,
 		chatJID, userID,
 	)
-	return getWarnCount(chatJID, userID)
+	return GetWarnCount(chatJID, userID)
 }
 
-func resetWarns(chatJID, userID string) {
+func ResetWarns(chatJID, userID string) {
 	settingsDB.Exec(`DELETE FROM warns WHERE chat_jid = ? AND user_id = ?`, chatJID, userID)
 }
 
-func getWarnCount(chatJID, userID string) int {
+func GetWarnCount(chatJID, userID string) int {
 	var n int
 	settingsDB.QueryRow(
 		`SELECT count FROM warns WHERE chat_jid = ? AND user_id = ?`, chatJID, userID,
@@ -109,7 +36,7 @@ func getWarnCount(chatJID, userID string) int {
 
 // ── shh ───────────────────────────────────────────────────────────────────────
 
-func isShhed(chatJID, userID string) bool {
+func IsShhed(chatJID, userID string) bool {
 	var dummy string
 	err := settingsDB.QueryRow(
 		`SELECT user_id FROM shh_users WHERE chat_jid = ? AND user_id = ?`, chatJID, userID,
@@ -117,13 +44,13 @@ func isShhed(chatJID, userID string) bool {
 	return err == nil
 }
 
-func setShh(chatJID, userID string) {
+func SetShh(chatJID, userID string) {
 	settingsDB.Exec(
 		`INSERT OR IGNORE INTO shh_users (chat_jid, user_id) VALUES (?, ?)`, chatJID, userID,
 	)
 }
 
-func setUnShh(chatJID, userID string) {
+func UnShh(chatJID, userID string) {
 	settingsDB.Exec(
 		`DELETE FROM shh_users WHERE chat_jid = ? AND user_id = ?`, chatJID, userID,
 	)
@@ -131,7 +58,7 @@ func setUnShh(chatJID, userID string) {
 
 // ── antilink ──────────────────────────────────────────────────────────────────
 
-func getAntilinkMode(chatJID string) string {
+func GetAntilinkMode(chatJID string) string {
 	var mode string
 	if err := settingsDB.QueryRow(
 		`SELECT mode FROM antilink_settings WHERE chat_jid = ?`, chatJID,
@@ -141,7 +68,7 @@ func getAntilinkMode(chatJID string) string {
 	return mode
 }
 
-func setAntilinkMode(chatJID, mode string) {
+func SetAntilinkMode(chatJID, mode string) {
 	settingsDB.Exec(
 		`INSERT INTO antilink_settings (chat_jid, mode) VALUES (?, ?)
 		 ON CONFLICT(chat_jid) DO UPDATE SET mode = excluded.mode`,
@@ -151,7 +78,7 @@ func setAntilinkMode(chatJID, mode string) {
 
 // ── antiword ──────────────────────────────────────────────────────────────────
 
-func getAntiwords(chatJID string) []string {
+func GetAntiwords(chatJID string) []string {
 	rows, err := settingsDB.Query(
 		`SELECT word FROM antiword_settings WHERE chat_jid = ?`, chatJID,
 	)
@@ -169,13 +96,13 @@ func getAntiwords(chatJID string) []string {
 	return words
 }
 
-func addAntiword(chatJID, word string) {
+func AddAntiword(chatJID, word string) {
 	settingsDB.Exec(
 		`INSERT OR IGNORE INTO antiword_settings (chat_jid, word) VALUES (?, ?)`, chatJID, word,
 	)
 }
 
-func removeAntiword(chatJID, word string) {
+func RemoveAntiword(chatJID, word string) {
 	settingsDB.Exec(
 		`DELETE FROM antiword_settings WHERE chat_jid = ? AND word = ?`, chatJID, word,
 	)
@@ -183,7 +110,7 @@ func removeAntiword(chatJID, word string) {
 
 // ── antispam ──────────────────────────────────────────────────────────────────
 
-func getAntispamMode(chatJID string) string {
+func GetAntispamMode(chatJID string) string {
 	var mode string
 	if err := settingsDB.QueryRow(
 		`SELECT mode FROM antispam_settings WHERE chat_jid = ?`, chatJID,
@@ -193,7 +120,7 @@ func getAntispamMode(chatJID string) string {
 	return mode
 }
 
-func setAntispamMode(chatJID, mode string) {
+func SetAntispamMode(chatJID, mode string) {
 	settingsDB.Exec(
 		`INSERT INTO antispam_settings (chat_jid, mode) VALUES (?, ?)
 		 ON CONFLICT(chat_jid) DO UPDATE SET mode = excluded.mode`,
@@ -201,7 +128,7 @@ func setAntispamMode(chatJID, mode string) {
 	)
 }
 
-func isAntispamWhitelisted(chatJID, userID string) bool {
+func IsAntispamWhitelisted(chatJID, userID string) bool {
 	var dummy string
 	err := settingsDB.QueryRow(
 		`SELECT user_id FROM antispam_whitelist WHERE chat_jid = ? AND user_id = ?`, chatJID, userID,
@@ -209,7 +136,7 @@ func isAntispamWhitelisted(chatJID, userID string) bool {
 	return err == nil
 }
 
-func setAntispamWhitelist(chatJID, userID string, allow bool) {
+func SetAntispamWhitelist(chatJID, userID string, allow bool) {
 	if allow {
 		settingsDB.Exec(
 			`INSERT OR IGNORE INTO antispam_whitelist (chat_jid, user_id) VALUES (?, ?)`, chatJID, userID,
@@ -223,13 +150,7 @@ func setAntispamWhitelist(chatJID, userID string, allow bool) {
 
 // ── AFK ───────────────────────────────────────────────────────────────────────
 
-// AFKStatus holds an active AFK entry.
-type AFKStatus struct {
-	Message string
-	SetAt   time.Time
-}
-
-func getAFK(userID string) *AFKStatus {
+func GetAFK(userID string) *AFKStatus {
 	var msg string
 	var setAt int64
 	err := settingsDB.QueryRow(
@@ -241,7 +162,7 @@ func getAFK(userID string) *AFKStatus {
 	return &AFKStatus{Message: msg, SetAt: time.Unix(setAt, 0)}
 }
 
-func setAFK(userID, message string) {
+func SetAFK(userID, message string) {
 	settingsDB.Exec(
 		`INSERT INTO afk_status (user_id, message, set_at) VALUES (?, ?, ?)
 		 ON CONFLICT(user_id) DO UPDATE SET message = excluded.message, set_at = excluded.set_at`,
@@ -249,13 +170,13 @@ func setAFK(userID, message string) {
 	)
 }
 
-func clearAFK(userID string) {
+func ClearAFK(userID string) {
 	settingsDB.Exec(`DELETE FROM afk_status WHERE user_id = ?`, userID)
 }
 
 // ── filters ───────────────────────────────────────────────────────────────────
 
-func getFilters(scope, chatJID string) map[string]string {
+func GetFilters(scope, chatJID string) map[string]string {
 	rows, err := settingsDB.Query(
 		`SELECT keyword, response FROM filters WHERE scope = ? AND chat_jid = ?`, scope, chatJID,
 	)
@@ -273,7 +194,7 @@ func getFilters(scope, chatJID string) map[string]string {
 	return m
 }
 
-func setFilter(scope, chatJID, keyword, response string) {
+func SetFilter(scope, chatJID, keyword, response string) {
 	settingsDB.Exec(
 		`INSERT INTO filters (scope, chat_jid, keyword, response) VALUES (?, ?, ?, ?)
 		 ON CONFLICT(scope, chat_jid, keyword) DO UPDATE SET response = excluded.response`,
@@ -281,7 +202,7 @@ func setFilter(scope, chatJID, keyword, response string) {
 	)
 }
 
-func delFilter(scope, chatJID, keyword string) bool {
+func DelFilter(scope, chatJID, keyword string) bool {
 	res, err := settingsDB.Exec(
 		`DELETE FROM filters WHERE scope = ? AND chat_jid = ? AND keyword = ?`, scope, chatJID, keyword,
 	)
@@ -292,7 +213,7 @@ func delFilter(scope, chatJID, keyword string) bool {
 	return n > 0
 }
 
-func matchFilter(scope, chatJID, text string) (response string, found bool) {
+func MatchFilter(scope, chatJID, text string) (response string, found bool) {
 	rows, err := settingsDB.Query(
 		`SELECT keyword, response FROM filters WHERE scope = ? AND chat_jid = ?`, scope, chatJID,
 	)
@@ -314,13 +235,13 @@ func matchFilter(scope, chatJID, text string) (response string, found bool) {
 
 // ── antistatus ────────────────────────────────────────────────────────────────
 
-func getAntistatusEnabled(chatJID string) bool {
+func GetAntistatusEnabled(chatJID string) bool {
 	var enabled int
 	settingsDB.QueryRow(`SELECT enabled FROM antistatus_settings WHERE chat_jid = ?`, chatJID).Scan(&enabled)
 	return enabled == 1
 }
 
-func setAntistatusEnabled(chatJID string, on bool) {
+func SetAntistatusEnabled(chatJID string, on bool) {
 	v := 0
 	if on {
 		v = 1
@@ -334,25 +255,25 @@ func setAntistatusEnabled(chatJID string, on bool) {
 
 // ── meta messages ─────────────────────────────────────────────────────────────
 
-// saveMetaMessage stores the ID and text of a Meta AI response the bot forwarded.
-func saveMetaMessage(msgID, chatJID, responseText string) {
+// SaveMetaMessage stores the ID and text of a Meta AI response the bot forwarded.
+func SaveMetaMessage(msgID, chatJID, responseText string) {
 	settingsDB.Exec(
 		`INSERT OR REPLACE INTO meta_messages (msg_id, chat_jid, response_text, created_at) VALUES (?, ?, ?, ?)`,
 		msgID, chatJID, responseText, time.Now().Unix(),
 	)
 }
 
-// getMetaMessageText returns the stored response text for a given message ID.
-func getMetaMessageText(msgID string) (responseText string, found bool) {
+// GetMetaMessageText returns the stored response text for a given message ID.
+func GetMetaMessageText(msgID string) (responseText string, found bool) {
 	err := settingsDB.QueryRow(
 		`SELECT response_text FROM meta_messages WHERE msg_id = ?`, msgID,
 	).Scan(&responseText)
 	return responseText, err == nil
 }
 
-// updateMetaMessageText updates the stored text for an already-saved message ID
+// UpdateMetaMessageText updates the stored text for an already-saved message ID
 // as Meta AI streams longer completions via edits.
-func updateMetaMessageText(msgID, responseText string) {
+func UpdateMetaMessageText(msgID, responseText string) {
 	settingsDB.Exec(
 		`UPDATE meta_messages SET response_text = ? WHERE msg_id = ?`,
 		responseText, msgID,

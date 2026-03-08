@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	db "alphonse/sql"
 )
 
 // urlRegex matches HTTP/HTTPS URLs and bare www. links.
@@ -20,17 +22,17 @@ func init() {
 			args := ctx.Args
 
 			if len(args) == 0 {
-				mode := getAntilinkMode(chatJID)
+				mode := db.GetAntilinkMode(chatJID)
 				ctx.Reply(menuHeader("antilink") + fmt.Sprintf(T().AntilinkStatus, mode))
 				return nil
 			}
 
 			switch strings.ToLower(args[0]) {
 			case "on":
-				setAntilinkMode(chatJID, "delete")
+				db.SetAntilinkMode(chatJID, "delete")
 				ctx.Reply(T().AntilinkOn)
 			case "off":
-				setAntilinkMode(chatJID, "off")
+				db.SetAntilinkMode(chatJID, "off")
 				ctx.Reply(T().AntilinkOff)
 			case "set":
 				if len(args) < 2 {
@@ -39,10 +41,10 @@ func init() {
 				}
 				switch strings.ToLower(args[1]) {
 				case "delete":
-					setAntilinkMode(chatJID, "delete")
+					db.SetAntilinkMode(chatJID, "delete")
 					ctx.Reply(fmt.Sprintf(T().AntilinkSet, "delete"))
 				case "kick":
-					setAntilinkMode(chatJID, "kick")
+					db.SetAntilinkMode(chatJID, "kick")
 					ctx.Reply(fmt.Sprintf(T().AntilinkSet, "kick"))
 				default:
 					ctx.Reply(T().AntilinkUnknownAct)

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	db "alphonse/sql"
+
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 )
@@ -255,23 +257,17 @@ func init() {
 		Pattern:  "messages",
 		Category: "group",
 		Func: func(ctx *Context) error {
-			rows, err := settingsDB.Query(
-				`SELECT chat_jid, COUNT(*) as cnt FROM message_secrets WHERE chat_jid != 'status@broadcast' GROUP BY chat_jid ORDER BY cnt DESC LIMIT 30`,
-			)
+			chats, err := db.GetTopChats()
 			if err != nil {
 				return err
 			}
-			defer rows.Close()
 
 			var sb strings.Builder
 			sb.WriteString(T().MessagesHeader)
 			n := 0
-			for rows.Next() {
-				var jidStr string
-				var cnt int
-				if err := rows.Scan(&jidStr, &cnt); err != nil {
-					continue
-				}
+			for _, chat := range chats {
+				jidStr := chat.JID
+				cnt := chat.Count
 				if strings.HasSuffix(jidStr, "@bot") {
 					continue
 				}
@@ -284,19 +280,12 @@ func init() {
 						}
 					}
 				} else if strings.HasSuffix(jidStr, "@s.whatsapp.net") {
-					var pushName string
-					settingsDB.QueryRow(`SELECT push_name FROM contacts WHERE their_jid = ?`, jidStr).Scan(&pushName)
-					if pushName != "" {
+					if pushName := db.GetContactName(jidStr); pushName != "" {
 						name = pushName
 					}
 				} else if strings.HasSuffix(jidStr, "@lid") {
 					userPart := strings.TrimSuffix(jidStr, "@lid")
-					var pushName string
-					settingsDB.QueryRow(
-						`SELECT c.push_name FROM lid_map l JOIN contacts c ON c.their_jid = l.pn || '@s.whatsapp.net' WHERE l.lid = ?`,
-						userPart,
-					).Scan(&pushName)
-					if pushName != "" {
+					if pushName := db.GetContactNameByLID(userPart); pushName != "" {
 						name = pushName
 					}
 				}
@@ -322,26 +311,19 @@ func init() {
 		Category: "group",
 		Func: func(ctx *Context) error {
 			chatJID := ctx.Event.Info.Chat.String()
-			rows, err := settingsDB.Query(
-				`SELECT sender_jid, COUNT(*) as cnt FROM message_secrets WHERE chat_jid = ? GROUP BY sender_jid ORDER BY cnt DESC LIMIT 20`,
-				chatJID,
-			)
+			senders, err := db.GetActiveSenders(chatJID)
 			if err != nil {
 				return err
 			}
-			defer rows.Close()
 
 			var sb strings.Builder
 			sb.WriteString(T().ActiveHeader)
 			var mentions []string
 			n := 0
-			for rows.Next() {
-				var senderJID string
-				var cnt int
-				if err := rows.Scan(&senderJID, &cnt); err != nil {
-					continue
-				}
+			for _, s := range senders {
 				n++
+				senderJID := s.SenderJID
+				cnt := s.Count
 				// senderJID is already a full JID string from the DB
 				userPart := senderJID
 				if idx := strings.Index(senderJID, "@"); idx != -1 {
@@ -372,26 +354,19 @@ func init() {
 			}
 
 			chatJID := ctx.Event.Info.Chat.String()
-			rows, err := settingsDB.Query(
-				`SELECT sender_jid, COUNT(*) as cnt FROM message_secrets WHERE chat_jid = ? GROUP BY sender_jid`,
-				chatJID,
-			)
+			allSenders, err := db.GetAllSenderCounts(chatJID)
 			if err != nil {
 				return err
 			}
-			defer rows.Close()
 
 			msgCounts := map[string]int{}
-			for rows.Next() {
-				var senderJID string
-				var cnt int
-				if rows.Scan(&senderJID, &cnt) == nil {
-					userPart := senderJID
-					if idx := strings.Index(senderJID, "@"); idx != -1 {
-						userPart = senderJID[:idx]
-					}
-					msgCounts[userPart] = cnt
+			for _, s := range allSenders {
+				senderJID := s.SenderJID
+				userPart := senderJID
+				if idx := strings.Index(senderJID, "@"); idx != -1 {
+					userPart = senderJID[:idx]
 				}
+				msgCounts[userPart] = s.Count
 			}
 
 			// resolve message count for a participant, checking JID, LID and PhoneNumber

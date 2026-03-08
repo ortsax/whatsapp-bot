@@ -32,6 +32,15 @@ var sourceDir string
 
 // ── CLI presentation helpers ──────────────────────────────────────────────────
 
+// printASCII prints the project name with a typewriter animation.
+func printASCII(project string) {
+	art := "\n  " + project + "\n  " + strings.Repeat("─", len(project)) + "\n"
+	for _, ch := range art {
+		fmt.Print(string(ch))
+		time.Sleep(18 * time.Millisecond)
+	}
+}
+
 // startSpinner prints a rotating spinner with msg until the returned stop
 // function is called. stop(done) clears the line and prints done.
 func startSpinner(msg string) func(done string) {
@@ -65,7 +74,7 @@ func startSpinner(msg string) func(done string) {
 func cliProgress(pct int, label string) {
 	const w = 28
 	filled := w * pct / 100
-	bar := strings.Repeat("━", filled) + strings.Repeat("─", w-filled)
+	bar := strings.Repeat("=", filled) + strings.Repeat(".", w-filled)
 	if pct == 100 {
 		fmt.Printf("\r[%s] %3d%%  %-28s\n", bar, pct, label)
 	} else {
@@ -75,29 +84,25 @@ func cliProgress(pct int, label string) {
 
 // printHelp prints a formatted usage/help screen and exits.
 func printHelp() {
-	fmt.Print(`
- ╔══════════════════════════════════════════╗
- ║           Alphonse Menu                  ║
- ╚══════════════════════════════════════════╝
+	printASCII("Alphonse")
+	fmt.Print(`  Usage
+    alphonse [flags]
 
- Usage
-   alphonse [flags]
+  Flags
+    --phone-number  <number>   Phone number (international format) to
+                               identify or pair a device
+    --update                   Pull latest source and rebuild binary
+    --list-sessions            List all paired sessions in the database
+    --delete-session <number>  Permanently delete a session by phone
+    --reset-session  <number>  Reset a session so it can be re-paired
+    --version                  Print version information and exit
+    -h, --help                 Show this help screen
 
- Flags
-   --phone-number  <number>   Phone number (international format) to
-                              identify or pair a device
-   --update                   Pull latest source and rebuild binary
-   --list-sessions            List all paired sessions in the database
-   --delete-session <number>  Permanently delete a session by phone
-   --reset-session  <number>  Reset a session so it can be re-paired
-   --version                  Print version information and exit
-   -h, --help                 Show this help screen
-
- Examples
-   alphonse                          Start the bot (uses stored session)
-   alphonse --phone-number 2348000000Pair a new device
-   alphonse --update                 Update to latest version
-   alphonse --list-sessions          Show all saved sessions
+  Examples
+    alphonse                          Start the bot (uses stored session)
+    alphonse --phone-number 2348000000000  Pair a new device
+    alphonse --update                 Update to latest version
+    alphonse --list-sessions          Show all saved sessions
 
 `)
 	os.Exit(0)

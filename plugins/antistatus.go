@@ -3,6 +3,8 @@ package plugins
 import (
 	"fmt"
 	"strings"
+
+	db "alphonse/sql"
 )
 
 func init() {
@@ -16,14 +18,14 @@ func init() {
 			sub := strings.ToLower(strings.TrimSpace(ctx.Text))
 			switch sub {
 			case "on":
-				setAntistatusEnabled(chatJID, true)
+				db.SetAntistatusEnabled(chatJID, true)
 				ctx.Reply(T().AntistatusOn)
 			case "off":
-				setAntistatusEnabled(chatJID, false)
+				db.SetAntistatusEnabled(chatJID, false)
 				ctx.Reply(T().AntistatusOff)
 			default:
 				status := "off"
-				if getAntistatusEnabled(chatJID) {
+				if db.GetAntistatusEnabled(chatJID) {
 					status = "on"
 				}
 				ctx.Reply(fmt.Sprintf("Antistatus is currently: *%s*\nUsage: .antistatus on|off", status))
